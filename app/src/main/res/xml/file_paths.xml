@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- 任务图片：filesDir/images/ -->
+    <files-path
+        name="images"
+        path="images/" />
+    <!-- 拍照临时文件：filesDir/images/temp/ 也落在 files-path 下；
+         额外声明 cache 目录以便扩展使用 -->
+    <cache-path
+        name="camera_cache"
+        path="camera/" />
+</paths>

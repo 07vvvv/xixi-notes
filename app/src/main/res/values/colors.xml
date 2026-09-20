@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 启动画面使用：深色背景 -->
+    <color name="splash_background">#0A0A0A</color>
+    <color name="xixi_accent">#6EE7B7</color>
+    <color name="ic_launcher_background">#0A0A0A</color>
+</resources>

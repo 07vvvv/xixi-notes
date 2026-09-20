@@ -1,0 +1,183 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">嘻嘻记事</string>
+
+    <!-- 通用操作 -->
+    <string name="action_save">保存</string>
+    <string name="action_cancel">取消</string>
+    <string name="action_delete">删除</string>
+    <string name="action_undo">撤销</string>
+    <string name="action_close">关闭</string>
+    <string name="action_clear_search">清空搜索</string>
+    <string name="action_add_image">添加</string>
+    <string name="action_retry">重试</string>
+
+    <!-- 主屏顶部栏 -->
+    <string name="cd_search">搜索</string>
+    <string name="cd_sort">排序</string>
+    <string name="cd_theme_mode">主题模式</string>
+    <string name="cd_show_completed">显示已完成</string>
+    <string name="cd_hide_completed">隐藏已完成</string>
+    <string name="search_placeholder">搜索任务…</string>
+    <string name="search_no_result">没有匹配的任务</string>
+    <string name="search_no_result_archive">没有匹配的已归档任务</string>
+
+    <!-- 排序菜单 -->
+    <string name="sort_menu_title">排序方式</string>
+    <string name="sort_priority">轻重缓急</string>
+    <string name="sort_time_asc">时间正序</string>
+    <string name="sort_time_desc">时间倒序</string>
+
+    <!-- 四象限 -->
+    <string name="quadrant_important_urgent">重要且紧急</string>
+    <string name="quadrant_urgent_only">不重要但紧急</string>
+    <string name="quadrant_important_only">重要但不紧急</string>
+    <string name="quadrant_neither">不重要且不紧急</string>
+    <string name="quadrant_important_urgent_short">重急</string>
+    <string name="quadrant_urgent_only_short">轻急</string>
+    <string name="quadrant_important_only_short">重缓</string>
+    <string name="quadrant_neither_short">轻缓</string>
+
+    <!-- 事项行 -->
+    <string name="cd_toggle_assigned">切换我的任务</string>
+    <string name="cd_toggle_checklist">标记完成</string>
+    <string name="cd_has_image">含图片</string>
+    <string name="cd_expand_group">展开分组</string>
+    <string name="cd_collapse_group">折叠分组</string>
+    <string name="group_count_badge">%1$d</string>
+    <string name="due_prefix">截止 %1$s</string>
+    <string name="overdue">已过期</string>
+    <string name="remaining_minutes">剩余 %1$d 分钟</string>
+    <string name="remaining_hours">剩余 %1$d 小时</string>
+    <string name="remaining_days">剩余 %1$d 天</string>
+    <string name="remaining_now">即将到期</string>
+
+    <!-- 空状态 -->
+    <string name="board_empty_title">还没有任务，点击右下角 + 创建一个</string>
+
+    <!-- 长按删除确认 -->
+    <string name="confirm_delete_title">删除此项？</string>
+    <string name="confirm_delete_message">这会永久移除。</string>
+
+    <!-- 编辑页 -->
+    <string name="editor_title_new">新建任务</string>
+    <string name="editor_title_edit">编辑任务</string>
+    <string name="editor_field_title">标题</string>
+    <string name="editor_field_title_placeholder">要做什么？</string>
+    <string name="editor_field_description">描述</string>
+    <string name="editor_field_description_placeholder">补充说明（可选）</string>
+    <string name="editor_tag_important">重要</string>
+    <string name="editor_tag_urgent">紧急</string>
+    <string name="editor_assigned">我来做</string>
+    <string name="editor_checklist">已完成</string>
+    <string name="editor_field_due_date">截止日期</string>
+    <string name="editor_field_reminder">提醒时间</string>
+    <string name="editor_not_set">未设置</string>
+    <string name="cd_clear_due_date">清除截止日期</string>
+    <string name="cd_clear_reminder">清除提醒</string>
+    <string name="editor_field_images">图片</string>
+    <string name="editor_image_limit">最多 5 张</string>
+    <string name="editor_image_add_title">添加图片</string>
+    <string name="editor_image_from_gallery">从相册选择</string>
+    <string name="editor_image_take_photo">拍照</string>
+    <string name="cd_remove_image">删除这张图片</string>
+    <string name="editor_image_processing">正在处理 %1$d/%2$d</string>
+    <string name="editor_image_failed_multi">%1$d 张中 %2$d 张处理失败</string>
+    <string name="editor_image_failed_single">图片处理失败</string>
+    <string name="editor_image_timeout">图片处理超时</string>
+    <string name="editor_discard_title">放弃修改？</string>
+    <string name="editor_discard_message">未保存的修改会丢失。</string>
+    <string name="editor_delete_title">删除这个任务？</string>
+    <string name="editor_delete_message">这会永久移除任务和它的图片。</string>
+    <string name="editor_delete_action">删除任务</string>
+    <string name="cd_view_image">查看图片</string>
+
+    <!-- 通知权限 -->
+    <string name="perm_notification_title">需要通知权限</string>
+    <string name="perm_notification_message">开启通知权限后，任务到期时才能提醒你。</string>
+    <string name="perm_exact_alarm_title">需要精确闹钟权限</string>
+    <string name="perm_exact_alarm_message">系统未授予精确闹钟权限，提醒可能延后数分钟。</string>
+    <string name="perm_camera_title">需要相机权限</string>
+    <string name="perm_camera_message">开启相机权限后可以直接拍照添加图片。</string>
+    <string name="perm_go_settings">去设置</string>
+
+    <!-- Radial Menu -->
+    <string name="radial_menu_hint">选择象限</string>
+    <string name="cd_radial_close">关闭菜单</string>
+
+    <!-- 底部 Dock -->
+    <string name="dock_board">主页</string>
+    <string name="dock_stats">统计</string>
+    <string name="dock_archive">归档</string>
+    <string name="dock_settings">设置</string>
+
+    <!-- 统计页 -->
+    <string name="stats_title">统计</string>
+    <string name="stats_week_completed">本周完成</string>
+    <string name="stats_total_completed">总完成</string>
+    <string name="stats_overdue">逾期</string>
+    <string name="stats_empty">还没有统计数据</string>
+    <string name="stats_empty_hint">创建一个任务并勾选完成，就能看到统计。</string>
+
+    <!-- 归档页 -->
+    <string name="archive_title">归档</string>
+    <string name="archive_empty">还没有已完成的任务</string>
+    <string name="archive_uncomplete">取消完成</string>
+    <string name="archive_delete_title">永久删除？</string>
+    <string name="archive_delete_message">这会永久移除任务和它的图片。</string>
+    <string name="archive_completed_at">完成于 %1$s</string>
+
+    <!-- 设置页 -->
+    <string name="settings_title">设置</string>
+    <string name="settings_section_display">显示</string>
+    <string name="settings_section_defaults">默认值</string>
+    <string name="settings_section_theme">主题</string>
+    <string name="settings_section_notification">通知</string>
+    <string name="settings_section_about">关于</string>
+    <string name="settings_completed_style">已完成任务显示方式</string>
+    <string name="settings_completed_in_place">原位显示</string>
+    <string name="settings_completed_hidden">隐藏</string>
+    <string name="settings_assignee_mode">我来做排序</string>
+    <string name="settings_assignee_first">已勾选优先</string>
+    <string name="settings_assignee_visual">仅视觉区分</string>
+    <string name="settings_assignee_separated">分隔线区分</string>
+    <string name="settings_default_reminder">默认提醒提前分钟数</string>
+    <string name="settings_default_reminder_value">%1$d 分钟</string>
+    <string name="settings_dynamic_color">动态取色</string>
+    <string name="settings_dynamic_color_desc">Android 12+ 使用壁纸颜色（默认关闭）</string>
+    <string name="settings_notification_action">通知点击行为</string>
+    <string name="settings_notification_open_edit">打开编辑页</string>
+    <string name="settings_notification_open_home">打开主页</string>
+    <string name="settings_notification_highlight">主页高亮任务</string>
+    <string name="settings_onboarding">重新查看引导页</string>
+    <string name="settings_version">版本 %1$s</string>
+
+    <!-- 主题模式 -->
+    <string name="theme_follow_system">跟随系统</string>
+    <string name="theme_dark">深色</string>
+    <string name="theme_light">浅色</string>
+
+    <!-- 引导页 -->
+    <string name="onboarding_skip">跳过</string>
+    <string name="onboarding_next">下一步</string>
+    <string name="onboarding_start">开始使用</string>
+    <string name="onboarding_page1_title">重要与紧急</string>
+    <string name="onboarding_page1_body">用重要和紧急两个标签分类你的待办，可添加图片，四象限让优先级一目了然</string>
+    <string name="onboarding_page2_title">Radial Menu</string>
+    <string name="onboarding_page2_body">点击右下角按钮，拖动或点击选择象限，快速创建任务</string>
+    <string name="onboarding_page3_title">提醒与主题</string>
+    <string name="onboarding_page3_body">设置截止时间和提醒，切换深色/浅色，一切由你掌控</string>
+
+    <!-- 图片查看页 -->
+    <string name="viewer_title">图片</string>
+    <string name="viewer_missing_list">图片不存在</string>
+    <string name="viewer_missing_image">图片已丢失</string>
+    <string name="viewer_page_indicator">%1$d / %2$d</string>
+
+    <!-- 通知 -->
+    <string name="notification_channel_name">任务提醒</string>
+    <string name="notification_channel_description">任务到期提醒</string>
+    <string name="notification_title">嘻嘻记事</string>
+    <string name="notification_content">任务「%1$s」即将到期</string>
+    <string name="notification_task_missing">任务已被删除</string>
+</resources>

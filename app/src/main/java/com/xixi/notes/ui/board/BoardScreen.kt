@@ -1,0 +1,613 @@
+package com.xixi.notes.ui.board
+
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.xixi.notes.R
+import com.xixi.notes.data.preferences.AppPrefs
+import com.xixi.notes.di.LocalAppContainer
+import com.xixi.notes.ui.components.AssignedDivider
+import com.xixi.notes.ui.components.GroupHeaderRow
+import com.xixi.notes.ui.components.InlineConfirm
+import com.xixi.notes.ui.components.LiqCreateSortMenu
+import com.xixi.notes.ui.components.MagnetSelect
+import com.xixi.notes.ui.components.SeekSearchBar
+import com.xixi.notes.ui.components.SortOptionUi
+import com.xixi.notes.ui.components.TaskRow
+import com.xixi.notes.ui.components.TaskRowHeightNoDue
+import com.xixi.notes.ui.components.TaskRowHeightWithDue
+import com.xixi.notes.ui.components.clickableNoRipple
+import com.xixi.notes.ui.components.colorOf
+import com.xixi.notes.ui.main.AppUiState
+import com.xixi.notes.ui.main.BoardToast
+import com.xixi.notes.ui.main.MainViewModel
+import com.xixi.notes.ui.main.UndoSlot
+import com.xixi.notes.ui.theme.XixiTheme
+import com.xixi.notes.ui.util.GentleEasing
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.distinctUntilChanged
+
+/** 排序菜单宽度（用于避让计算） */
+private val SortButtonSize = 46.dp
+
+/**
+ * 主屏。
+ *
+ * 顶部栏：搜索 + 排序 + magnet-select + 「显示已完成」眼睛图标。
+ * 列表：轻重缓急四分组（可折叠）或时间排序平铺。
+ */
+@Composable
+fun BoardScreen(
+    mainViewModel: MainViewModel,
+    appState: AppUiState,
+    undo: UndoSlot?,
+    toast: BoardToast?,
+    scrollToTopTick: Int,
+    listState: LazyListState,
+    onOpenEditor: (Long) -> Unit,
+    onOpenImageViewer: (Int) -> Unit,
+    onSearchExpandedChange: (Boolean) -> Unit,
+    onScrollVisibilityChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+    viewModel: BoardViewModel = viewModel(
+        factory = BoardViewModel.Factory(
+            LocalAppContainer.current.taskRepository,
+            LocalAppContainer.current.preferences
+        )
+    )
+) {
+    val container = LocalAppContainer.current
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val prefs by container.preferences.prefs.collectAsStateWithLifecycle(
+        initialValue = AppPrefs()
+    )
+
+    // 排序菜单与确认态
+    var sortMenuOpen by remember { mutableStateOf(false) }
+    var confirmingTaskId by remember { mutableStateOf<Long?>(null) }
+
+    // 高亮闪烁
+    var highlightTaskId by remember { mutableStateOf<Long?>(null) }
+    val highlightAlpha by animateFloatAsState(
+        targetValue = if (highlightTaskId != null) 1f else 0f,
+        animationSpec = tween(durationMillis = 300, easing = GentleEasing),
+        label = "board_highlight"
+    )
+
+    // 离开主屏时复位搜索 / 临时显示 / 折叠展开
+    LaunchedEffect(state.searchExpanded) {
+        onSearchExpandedChange(state.searchExpanded)
+    }
+
+    // 滚动方向 -> FAB 显隐（向上滚动时隐藏）
+    LaunchedEffect(listState) {
+        var lastOffset = 0
+        snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }
+            .distinctUntilChanged()
+            .collect { (index, offset) ->
+                val current = index * 10_000 + offset
+                val delta = current - lastOffset
+                if (kotlin.math.abs(delta) > 12) {
+                    onScrollVisibilityChange(delta < 0)
+                    lastOffset = current
+                }
+            }
+    }
+
+    // 点击当前 Dock 标签：滚动到顶部
+    LaunchedEffect(scrollToTopTick) {
+        if (scrollToTopTick > 0) {
+            runCatching { listState.animateScrollToItem(0) }
+        }
+    }
+
+    // HIGHLIGHT：展开折叠分组（300ms 平滑）-> 滚动 -> 闪烁 1 秒
+    LaunchedEffect(appState.highlightTaskId, appState.highlightNonce) {
+        val target = appState.highlightTaskId ?: return@LaunchedEffect
+        viewModel.setTransientVisible(target)
+
+        // 等待列表刷新后重新读取，保证定位准确
+        var rows = state.rows
+        if (rows.none { it is BoardRow.TaskRowItem && it.task.id == target }) {
+            delay(120L)
+            rows = viewModel.uiState.value.rows
+        }
+
+        val quadrant = rows.filterIsInstance<BoardRow.TaskRowItem>()
+            .firstOrNull { it.task.id == target }
+            ?.quadrant
+            ?: rows.filterIsInstance<BoardRow.GroupHeader>()
+                .firstOrNull { header -> header.group.tasks.any { it.id == target } }
+                ?.group?.quadrant
+
+        if (quadrant != null && viewModel.uiState.value.foldedGroups[quadrant.groupKey] == true) {
+            // 先平滑展开折叠分组（animateContentSize 300ms），再滚动
+            viewModel.toggleFolded(quadrant)
+            delay(340L)
+        }
+
+        val index = viewModel.uiState.value.rows.indexOfFirst { row ->
+            row is BoardRow.TaskRowItem && row.task.id == target
+        }
+        if (index >= 0) {
+            listState.animateScrollToItem(index)
+        }
+        highlightTaskId = target
+        delay(1_000L)
+        highlightTaskId = null
+        mainViewModel.clearHighlight()
+    }
+
+    // 离开主屏：恢复 HIDDEN 与折叠状态
+    DisposableEffect(Unit) {
+        onDispose {
+            viewModel.clearTransientVisible()
+            viewModel.onSearchStateReset()
+        }
+    }
+
+    BackHandler(enabled = state.searchExpanded || sortMenuOpen || confirmingTaskId != null) {
+        when {
+            confirmingTaskId != null -> confirmingTaskId = null
+            sortMenuOpen -> sortMenuOpen = false
+            state.searchExpanded -> viewModel.closeSearch()
+        }
+    }
+
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(XixiTheme.colors.background)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .systemBarsPadding()
+        ) {
+            // ---------------------------------------------------------- 顶部栏
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp)
+                    .padding(start = 16.dp, end = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                SeekSearchBar(
+                    value = state.query,
+                    onValueChange = viewModel::setQuery,
+                    onClose = { viewModel.closeSearch() },
+                    expanded = state.searchExpanded,
+                    onExpandRequest = { viewModel.openSearch() },
+                    modifier = Modifier.wrapContentWidth()
+                )
+
+                Spacer(modifier = Modifier.weight(1f))
+
+                // 搜索展开时其他按钮淡出 + 缩小
+                val othersAlpha by animateFloatAsState(
+                    targetValue = if (state.searchExpanded) 0f else 1f,
+                    animationSpec = tween(durationMillis = 220, easing = GentleEasing),
+                    label = "topbar_others_alpha"
+                )
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier
+                        .alpha(othersAlpha)
+                        .graphicsLayer {
+                            scaleX = 1f - 0.15f * (1f - othersAlpha)
+                            scaleY = 1f - 0.15f * (1f - othersAlpha)
+                        }
+                ) {
+                    // 排序（46dp 圆形图标）
+                    Box(modifier = Modifier.size(SortButtonSize)) {
+                        LiqCreateSortMenu(
+                            open = sortMenuOpen,
+                            onToggle = { sortMenuOpen = !sortMenuOpen },
+                            options = sortOptions(prefs.sortMode),
+                            onSelect = { id ->
+                                sortMenuOpen = false
+                                val mode = SortMode.valueOf(id)
+                                container.let { c ->
+                                    c.radialMenuState.value = null
+                                }
+                                viewModel.setSortMode(mode)
+                            }
+                        )
+                    }
+
+                    // magnet-select 三小球
+                    MagnetSelect(
+                        mode = prefs.themeMode,
+                        onModeChange = { mode -> viewModel.setThemeMode(mode) }
+                    )
+
+                    // 「显示已完成」眼睛图标
+                    val hiddenMode = prefs.completedStyle == CompletedStyle.HIDDEN
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .clickableNoRipple {
+                                viewModel.setCompletedStyle(
+                                    if (hiddenMode) CompletedStyle.IN_PLACE
+                                    else CompletedStyle.HIDDEN
+                                )
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = if (hiddenMode) Icons.Default.VisibilityOff
+                            else Icons.Default.Visibility,
+                            contentDescription = stringResource(
+                                if (hiddenMode) R.string.cd_show_completed
+                                else R.string.cd_hide_completed
+                            ),
+                            tint = XixiTheme.colors.textPrimary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+            }
+
+            // ------------------------------------------------------------ 列表
+            if (state.isEmpty) {
+                EmptyBoard(searching = state.searching) {
+                    viewModel.setQuery("")
+                }
+            } else {
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .pointerInput(confirmingTaskId) {
+                            if (confirmingTaskId != null) {
+                                // 点击任意位置收起 inline confirm（事件仍继续传递）
+                                awaitEachGesture {
+                                    awaitFirstDown(
+                                        requireUnconsumed = false,
+                                        pass = PointerEventPass.Initial
+                                    )
+                                    confirmingTaskId = null
+                                }
+                            }
+                        },
+                    contentPadding = PaddingValues(top = 4.dp, bottom = 140.dp)
+                ) {
+                    state.rows.forEach { row ->
+                        when (row) {
+                            is BoardRow.GroupHeader -> item(key = row.key) {
+                                GroupHeaderRow(
+                                    title = stringResource(row.group.quadrant.titleRes),
+                                    count = row.count,
+                                    color = XixiTheme.quadrant.colorOf(row.group.quadrant),
+                                    folded = row.group.isFolded,
+                                    onToggleFold = { viewModel.toggleFolded(row.group.quadrant) }
+                                )
+                            }
+
+                            is BoardRow.Divider -> item(key = row.key) {
+                                AssignedDivider()
+                            }
+
+                            is BoardRow.TaskRowItem -> item(key = row.key) {
+                                // 折叠时行高平滑收缩至 0，只保留分组头部
+                                val isFolded = state.foldedGroups[row.quadrant.groupKey] == true
+                                val naturalHeight = if (row.task.dueDate != null) {
+                                    TaskRowHeightWithDue
+                                } else {
+                                    TaskRowHeightNoDue
+                                }
+                                val itemHeight by animateDpAsState(
+                                    targetValue = if (isFolded) 0.dp else naturalHeight + 8.dp,
+                                    animationSpec = tween(300, easing = GentleEasing),
+                                    label = "row_height"
+                                )
+                                val itemAlpha by animateFloatAsState(
+                                    targetValue = if (isFolded) 0f else 1f,
+                                    animationSpec = tween(220, easing = GentleEasing),
+                                    label = "row_alpha"
+                                )
+
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(itemHeight)
+                                        .alpha(itemAlpha)
+                                        .clipToBounds()
+                                ) {
+                                    TaskRow(
+                                        task = row.task,
+                                        quadrant = row.quadrant,
+                                        highlightAlpha = if (highlightTaskId == row.task.id) {
+                                            highlightAlpha
+                                        } else {
+                                            0f
+                                        },
+                                        showSeparatedAssigned = row.separatedAssigned,
+                                        onToggleAssigned = {
+                                            viewModel.toggleAssigned(row.task)
+                                        },
+                                        onToggleChecklist = {
+                                            mainViewModel.toggleCheck(row.task)
+                                        },
+                                        onClick = {
+                                            confirmingTaskId = null
+                                            onOpenEditor(row.task.id)
+                                        },
+                                        onLongPress = {
+                                            // 重要事项：inline confirm；其余：延迟删除 + 撤销
+                                            if (row.task.isImportant) {
+                                                confirmingTaskId = row.task.id
+                                            } else {
+                                                mainViewModel.deleteWithUndo(row.task)
+                                            }
+                                        }
+                                    )
+
+                                    // 重要事项长按的 Inline Confirm
+                                    InlineConfirm(
+                                        visible = confirmingTaskId == row.task.id,
+                                        title = stringResource(R.string.confirm_delete_title),
+                                        message = stringResource(R.string.confirm_delete_message),
+                                        confirmLabel = stringResource(R.string.action_delete),
+                                        cancelLabel = stringResource(R.string.action_cancel),
+                                        onConfirm = {
+                                            confirmingTaskId = null
+                                            viewModel.deleteNow(row.task)
+                                        },
+                                        onCancel = { confirmingTaskId = null }
+                                    )
+
+                                    // 撤销条（紧贴该行下方）
+                                    AnimatedVisibility(
+                                        visible = undo != null &&
+                                            undo.uncheckTaskId == row.task.id,
+                                        enter = fadeIn(tween(180, easing = GentleEasing)),
+                                        exit = fadeOut(tween(140, easing = GentleEasing))
+                                    ) {
+                                        UndoInline(
+                                            message = undo?.message.orEmpty(),
+                                            onUndo = {
+                                                mainViewModel.undo(
+                                                    onCancelImageDeletion = { taskId ->
+                                                        viewModel.deleteTaskImages(taskId)
+                                                    }
+                                                )
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 底部撤销条（删除撤销：任务已不在列表里）
+        AnimatedVisibility(
+            visible = undo != null && undo.restore != null,
+            enter = fadeIn(tween(180, easing = GentleEasing)) +
+                scaleIn(initialScale = 0.96f, animationSpec = tween(200, easing = GentleEasing)),
+            exit = fadeOut(tween(140, easing = GentleEasing)),
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(start = 16.dp, end = 16.dp, bottom = 152.dp)
+        ) {
+            UndoInline(
+                message = undo?.message.orEmpty(),
+                onUndo = {
+                    mainViewModel.undo(
+                        onCancelImageDeletion = { taskId ->
+                            viewModel.deleteTaskImages(taskId)
+                        }
+                    )
+                }
+            )
+        }
+
+        // 通知点击已删除任务时的提示
+        AnimatedVisibility(
+            visible = toast != null,
+            enter = fadeIn(tween(180, easing = GentleEasing)) +
+                scaleIn(initialScale = 0.96f, animationSpec = tween(200, easing = GentleEasing)),
+            exit = fadeOut(tween(160, easing = GentleEasing)),
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = 64.dp)
+        ) {
+            ToastInline(
+                message = toast?.message.orEmpty(),
+                onDismiss = { mainViewModel.dismissToast() }
+            )
+        }
+    }
+
+    // 提示 3 秒后自动消失
+    LaunchedEffect(toast?.id) {
+        if (toast != null) {
+            delay(3_000L)
+            mainViewModel.dismissToast()
+        }
+    }
+
+    // 高亮任务离开主屏后恢复隐藏
+    LaunchedEffect(appState.highlightTaskId) {
+        if (appState.highlightTaskId == null) {
+            viewModel.clearTransientVisible()
+        }
+    }
+}
+
+/** 排序菜单选项 */
+private fun sortOptions(current: SortMode): List<SortOptionUi> = listOf(
+    SortOptionUi(SortMode.PRIORITY.name, "轻重缓急", current == SortMode.PRIORITY),
+    SortOptionUi(SortMode.TIME_ASC.name, "时间正序", current == SortMode.TIME_ASC),
+    SortOptionUi(SortMode.TIME_DESC.name, "时间倒序", current == SortMode.TIME_DESC)
+)
+
+/** 行内撤销条 */
+@Composable
+private fun UndoInline(
+    message: String,
+    onUndo: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 4.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(XixiTheme.colors.card)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = message,
+            color = XixiTheme.colors.textSecondary,
+            fontSize = 13.sp,
+            letterSpacing = 0.5.sp,
+            maxLines = 1,
+            modifier = Modifier.weight(1f)
+        )
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(10.dp))
+                .clickableNoRipple(onClick = onUndo)
+                .padding(horizontal = 12.dp, vertical = 6.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.action_undo),
+                color = MaterialTheme.colorScheme.primary,
+                fontSize = 13.sp,
+                letterSpacing = 0.5.sp
+            )
+        }
+    }
+}
+
+/** 顶部提示条 */
+@Composable
+private fun ToastInline(
+    message: String,
+    onDismiss: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .padding(horizontal = 16.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(XixiTheme.colors.card)
+            .clickableNoRipple(onClick = onDismiss)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = message,
+            color = XixiTheme.colors.textPrimary,
+            fontSize = 13.sp,
+            letterSpacing = 0.5.sp
+        )
+    }
+}
+
+/** 主屏空状态 */
+@Composable
+private fun EmptyBoard(
+    searching: Boolean,
+    onClear: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .imePadding()
+            .padding(32.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                text = stringResource(
+                    if (searching) R.string.search_no_result else R.string.board_empty_title
+                ),
+                color = XixiTheme.colors.textSecondary,
+                fontSize = 15.sp,
+                letterSpacing = 0.5.sp,
+                textAlign = TextAlign.Center
+            )
+            if (searching) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(XixiTheme.colors.card)
+                        .clickableNoRipple(onClick = onClear)
+                        .padding(horizontal = 16.dp, vertical = 10.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.action_clear_search),
+                        color = XixiTheme.colors.textPrimary,
+                        fontSize = 13.sp,
+                        letterSpacing = 0.5.sp
+                    )
+                }
+            }
+        }
+    }
+}
