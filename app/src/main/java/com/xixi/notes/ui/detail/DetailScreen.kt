@@ -413,16 +413,8 @@ fun DetailScreen(
                                 color = XixiTheme.quadrant.urgentOnly,
                                 onClick = viewModel::toggleUrgent
                             )
-                        }
-                        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                            // 「已完成」保留专用完成绿，不并入强调色
                             TagChip(
-                                label = stringResource(R.string.editor_assigned),
-                                selected = state.isAssignedToMe,
-                                color = XixiTheme.colors.accent,
-                                onClick = viewModel::toggleAssigned
-                            )
-                            TagChip(
-                                // 「已完成」保留专用完成绿，不并入强调色
                                 label = stringResource(R.string.editor_checklist),
                                 selected = state.isCheckedOff,
                                 color = XixiTheme.colors.check,

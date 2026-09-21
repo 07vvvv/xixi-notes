@@ -13,34 +13,41 @@ fun priorityRank(task: TaskEntity): Int = when {
     else -> 3
 }
 
-/** 组内主键：assignee 已勾选排前面 */
-fun assigneeRank(task: TaskEntity): Int = if (task.isAssignedToMe) 0 else 1
-
 /**
- * 轻重缓急模式下的组内比较器：
- * 主键 assignee，次键创建时间正序。
+ * 轻重缓急模式下的组内比较器：按创建时间正序。
+ *
+ * 组间顺序由 [priorityRank] + 四分组保证；已移除 assignee 规则。
  */
 fun priorityGroupComparator(): Comparator<TaskEntity> =
-    compareBy<TaskEntity> { assigneeRank(it) }
-        .thenBy { it.createdAt }
+    compareBy<TaskEntity> { it.createdAt }
 
 /**
- * 时间排序比较器：按 dueDate 升/降，无 dueDate 一律排最后。
- * assignee 规则同时生效（作为第一键）。
+ * 按截止日期排序比较器（升序）：dueDate 早的在前。
+ *
+ * 规则：
+ * - 无 dueDate 的任务一律排在最后；
+ * - dueDate 相同时按 createdAt 升序。
  */
-fun timeComparator(ascending: Boolean): Comparator<TaskEntity> = Comparator { a, b ->
-    val assigneeDiff = assigneeRank(a) - assigneeRank(b)
-    if (assigneeDiff != 0) return@Comparator assigneeDiff
-
+fun dueDateComparator(): Comparator<TaskEntity> = Comparator { a, b ->
     val left = a.dueDate
     val right = b.dueDate
     when {
         left == null && right == null -> a.createdAt.compareTo(b.createdAt)
         left == null -> 1
         right == null -> -1
-        ascending -> left.compareTo(right)
-        else -> right.compareTo(left)
+        else -> {
+            val dueDiff = left.compareTo(right)
+            if (dueDiff != 0) dueDiff else a.createdAt.compareTo(b.createdAt)
+        }
     }
+}
+
+/**
+ * 按创建时间排序比较器（升序）：createdAt 早的在前；相同时按 id 升序。
+ */
+fun createdAtComparator(): Comparator<TaskEntity> = Comparator { a, b ->
+    val createdDiff = a.createdAt.compareTo(b.createdAt)
+    if (createdDiff != 0) createdDiff else a.id.compareTo(b.id)
 }
 
 /** 归档排序：completedAt ?: updatedAt 倒序 */

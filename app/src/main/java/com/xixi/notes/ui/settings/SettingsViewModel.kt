@@ -6,7 +6,6 @@ import androidx.lifecycle.viewModelScope
 import com.xixi.notes.data.preferences.AppPrefs
 import com.xixi.notes.data.preferences.AppPreferences
 import com.xixi.notes.data.preferences.NotificationActionMode
-import com.xixi.notes.ui.board.AssigneeMode
 import com.xixi.notes.ui.board.CompletedStyle
 import com.xixi.notes.ui.theme.ThemeMode
 import kotlinx.coroutines.flow.SharingStarted
@@ -27,10 +26,6 @@ class SettingsViewModel(private val preferences: AppPreferences) : ViewModel() {
 
     fun setCompletedStyle(style: CompletedStyle) {
         viewModelScope.launch { preferences.setCompletedStyle(style) }
-    }
-
-    fun setAssigneeMode(mode: AssigneeMode) {
-        viewModelScope.launch { preferences.setAssigneeMode(mode) }
     }
 
     fun setDefaultReminderMinutes(minutes: Int) {

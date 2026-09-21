@@ -44,28 +44,25 @@ enum class Quadrant(
     }
 }
 
-/** 排序模式 */
+/**
+ * 排序模式。
+ *
+ * - [PRIORITY] 轻重缓急排序：四分组，可独立折叠
+ * - [DUE_DATE] 按截止日期：dueDate 升序，无 dueDate 排最后
+ * - [CREATED_AT] 按创建时间：createdAt 升序
+ *
+ * 兼容说明：历史版本的 TIME_ASC / TIME_DESC 在读取偏好时统一映射为 [DUE_DATE]
+ * （见 AppPreferences 的 toSortMode 解析），因此枚举中不再保留这两个常量。
+ */
 enum class SortMode {
-    /** 轻重缓急（默认）：四分组，可独立折叠 */
+    /** 轻重缓急（默认） */
     PRIORITY,
 
-    /** 时间正序：按 dueDate 升序，无 dueDate 排最后 */
-    TIME_ASC,
+    /** 按截止日期 */
+    DUE_DATE,
 
-    /** 时间倒序：按 dueDate 降序，无 dueDate 排最后 */
-    TIME_DESC
-}
-
-/** 「我来做」（assignee）规则，三种排序模式通用 */
-enum class AssigneeMode {
-    /** 已勾选优先 */
-    ASSIGNEE_FIRST,
-
-    /** 仅视觉区分（排序不变） */
-    VISUAL_ONLY,
-
-    /** 分隔线区分（默认） */
-    SEPARATED
+    /** 按创建时间 */
+    CREATED_AT
 }
 
 /** 已完成任务的显示方式 */
@@ -87,6 +84,5 @@ data class TaskUi(
 data class TaskQuadrantGroup(
     val quadrant: Quadrant,
     val tasks: List<TaskEntity>,
-    val separatedAssigned: List<TaskEntity>,
     val isFolded: Boolean
 )

@@ -8,7 +8,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -29,8 +28,11 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -39,6 +41,7 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
@@ -51,17 +54,12 @@ import com.xixi.notes.ui.theme.Spacing
 import com.xixi.notes.ui.theme.XixiElevation
 import com.xixi.notes.ui.theme.XixiRadius
 import com.xixi.notes.ui.theme.XixiTheme
-import com.xixi.notes.ui.util.RemainingUnit
-import com.xixi.notes.ui.util.currentMinute
-import com.xixi.notes.ui.util.formatDateTime
-import com.xixi.notes.ui.util.remainingTextRes
-import androidx.compose.ui.res.stringResource
+import com.xixi.notes.ui.util.formatShortDateTime
+import com.xixi.notes.ui.util.isOverdue
+import kotlinx.coroutines.delay
 
-/** 有截止日期时的行高 */
-val TaskRowHeightWithDue = 72.dp
-
-/** 无截止日期时的行高 */
-val TaskRowHeightNoDue = 60.dp
+/** 任务行最小高度（单行：标题 + 右侧截止时间 + 叉号） */
+val TaskRowHeight = 60.dp
 
 /** 任务行卡片圆角 */
 private val RowShape = RoundedCornerShape(XixiRadius.medium)
@@ -69,15 +67,14 @@ private val RowShape = RoundedCornerShape(XixiRadius.medium)
 /**
  * 任务行。
  *
- * - 左：Assignee 圆形勾选框 24dp（细线圆环）
- * - 中：标题单行省略；完成时删除线 + 40% 透明
- * - 右侧有图片时显示 Image 图标 12dp
- * - 下方截止日期与剩余时间 12sp，每分钟刷新，过期红色
- * - 右：Checklist 按钮 24dp（细线 × / 绿勾 ✓）
- * - 长按 500ms 触发 [onLongPress]
+ * - 左：完成圆圈 24dp —— 点击完成 / 取消完成；完成态为实心 + 白色对勾
+ * - 中：标题单行省略；完成时删除线 + 整行 40% 透明；有图片时标题右侧显示 Image 图标
+ * - 右：截止时间（MM-dd HH:mm）在叉号左侧，过期红色，未设置不显示
+ * - 右：叉号 24dp —— 点击删除（非重要任务直接删除 + 撤销，重要任务原地 Inline Confirm）
+ * - 长按 500ms 触发 [onLongPress]（保留：作为删除的快捷入口）
  *
  * 视觉：卡片底色 + 柔和阴影 + 16dp 圆角；辅助信息用三级文字色；
- * 逾期用危险色；勾选态保持独立的「完成绿」，不并入统一强调色。
+ * 逾期用危险色；完成态保持独立的「完成绿」，不并入统一强调色。
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -85,28 +82,26 @@ fun TaskRow(
     task: TaskEntity,
     quadrant: Quadrant,
     highlightAlpha: Float,
-    showSeparatedAssigned: Boolean,
-    onToggleAssigned: () -> Unit,
-    onToggleChecklist: () -> Unit,
+    onToggleCheck: () -> Unit,
+    onDelete: () -> Unit,
     onClick: () -> Unit,
     onLongPress: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val now = currentMinute()
-    val quadrantColor = XixiTheme.quadrant.colorOf(quadrant)
-
-    val dueText = task.dueDate?.let { due ->
-        val remaining = remainingTextRes(due, now)
-        val overdue = remaining.unit == RemainingUnit.OVERDUE
-        val remainingString = if (overdue) {
-            stringResource(com.xixi.notes.R.string.overdue)
-        } else {
-            stringResource(remaining.stringRes, remaining.value)
+    // 每分钟刷新一次当前时间：到期后 1 分钟内自动变为过期红色（LaunchedEffect + delay）
+    var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(60_000L)
+            now = System.currentTimeMillis()
         }
-        Pair("${formatDateTime(due)} · $remainingString", overdue)
     }
 
-    // 完成时整体 40% 透明
+    val quadrantColor = XixiTheme.quadrant.colorOf(quadrant)
+    val due = task.dueDate
+    val overdue = due != null && isOverdue(due, now)
+
+    // 完成时整行 40% 透明（含标题、截止时间与两个按钮）
     val contentAlpha = if (task.isCheckedOff) 0.4f else 1f
 
     // 高亮闪烁：统一强调色的 20% 透明 -> 0%
@@ -124,9 +119,7 @@ fun TaskRow(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(
-                    min = if (task.dueDate != null) TaskRowHeightWithDue else TaskRowHeightNoDue
-                )
+                .heightIn(min = TaskRowHeight)
                 .combinedClickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
@@ -136,90 +129,101 @@ fun TaskRow(
                 .padding(horizontal = 16.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // 分隔线模式下，已勾选「我来做」的任务再加一层视觉区分
-            AssigneeCheckbox(
-                checked = task.isAssignedToMe,
+            // 左：完成圆圈
+            CompleteCircle(
+                checked = task.isCheckedOff,
                 color = quadrantColor,
-                onToggle = onToggleAssigned
+                onToggle = onToggleCheck
             )
 
             Spacer(modifier = Modifier.width(Spacing.md))
 
-            Column(
+            // 中：标题（单行省略）+ 可选图片角标
+            Row(
                 modifier = Modifier
                     .weight(1f)
-                    .alpha(contentAlpha)
+                    .alpha(contentAlpha),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = task.title,
-                        color = XixiTheme.colors.textPrimary,
-                        fontSize = 15.sp,
-                        letterSpacing = 0.3.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        textDecoration = if (task.isCheckedOff) TextDecoration.LineThrough
-                        else TextDecoration.None,
-                        modifier = Modifier.weight(1f, fill = false)
-                    )
-                    if (task.imagePaths.isNotEmpty()) {
-                        Spacer(modifier = Modifier.width(Spacing.xs))
-                        Icon(
-                            imageVector = Icons.Default.Image,
-                            contentDescription = "含图片",
-                            tint = XixiTheme.colors.textTertiary,
-                            modifier = Modifier.size(12.dp)
-                        )
-                    }
-                }
-
-                if (dueText != null) {
-                    Spacer(modifier = Modifier.height(3.dp))
-                    Text(
-                        text = dueText.first,
-                        // 逾期用危险色，其余为辅助信息（更小更淡）
-                        color = if (dueText.second) XixiTheme.colors.danger
-                        else XixiTheme.colors.textTertiary,
-                        fontSize = 12.sp,
-                        letterSpacing = 0.3.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                Text(
+                    text = task.title,
+                    color = XixiTheme.colors.textPrimary,
+                    fontSize = 15.sp,
+                    letterSpacing = 0.3.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    textDecoration = if (task.isCheckedOff) TextDecoration.LineThrough
+                    else TextDecoration.None,
+                    modifier = Modifier.weight(1f, fill = false)
+                )
+                if (task.imagePaths.isNotEmpty()) {
+                    Spacer(modifier = Modifier.width(Spacing.xs))
+                    Icon(
+                        imageVector = Icons.Default.Image,
+                        contentDescription = stringResource(R.string.cd_has_image),
+                        tint = XixiTheme.colors.textTertiary,
+                        modifier = Modifier.size(12.dp)
                     )
                 }
             }
 
+            // 右：截止时间（叉号左侧），未设置时不占位
+            if (due != null) {
+                Spacer(modifier = Modifier.width(Spacing.sm))
+                Text(
+                    text = formatShortDateTime(due),
+                    // 已过期用危险色，其余为辅助信息色
+                    color = if (overdue) XixiTheme.colors.danger
+                    else XixiTheme.colors.textTertiary,
+                    fontSize = 12.sp,
+                    letterSpacing = 0.3.sp,
+                    maxLines = 1,
+                    modifier = Modifier.alpha(contentAlpha)
+                )
+            }
+
             Spacer(modifier = Modifier.width(Spacing.sm))
 
-            ChecklistButton(
-                checked = task.isCheckedOff,
-                onToggle = onToggleChecklist
+            // 右：删除叉号
+            DeleteButton(
+                onDelete = onDelete,
+                modifier = Modifier.alpha(contentAlpha)
             )
         }
     }
 }
 
-/** Assignee 圆形勾选框 24dp */
+/**
+ * 完成圆圈 24dp：未完成是细线圆环，完成后为象限色实心 + 白色对勾。
+ *
+ * @param color 完成后的实心填充色（取任务所属象限色）
+ */
 @Composable
-fun AssigneeCheckbox(
+fun CompleteCircle(
     checked: Boolean,
     color: Color,
     onToggle: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val scale by animateFloatAsState(
-        targetValue = if (checked) 1f else 0.86f,
+        targetValue = if (checked) 1f else 0.9f,
         animationSpec = tween(durationMillis = 220),
-        label = "assignee_scale"
+        label = "complete_scale"
     )
     val fill by animateColorAsState(
         targetValue = if (checked) color else Color.Transparent,
         animationSpec = tween(durationMillis = 250),
-        label = "assignee_fill"
+        label = "complete_fill"
     )
     val borderColor by animateColorAsState(
         targetValue = if (checked) color else XixiTheme.colors.textTertiary,
         animationSpec = tween(durationMillis = 250),
-        label = "assignee_border"
+        label = "complete_border"
+    )
+    val tickAlpha by animateFloatAsState(
+        targetValue = if (checked) 1f else 0f,
+        animationSpec = tween(durationMillis = 180),
+        label = "complete_tick"
     )
 
     Box(
@@ -232,15 +236,12 @@ fun AssigneeCheckbox(
             .clickableNoRipple(onClick = onToggle),
         contentAlignment = Alignment.Center
     ) {
-        val tickAlpha by animateFloatAsState(
-            targetValue = if (checked) 1f else 0f,
-            animationSpec = tween(durationMillis = 180),
-            label = "assignee_tick"
-        )
         if (tickAlpha > 0.01f) {
             Icon(
                 imageVector = Icons.Default.Check,
-                contentDescription = "切换我的任务",
+                contentDescription = stringResource(
+                    if (checked) R.string.cd_uncomplete_task else R.string.cd_complete_task
+                ),
                 // 对勾用专用墨绿，保证在象限色实心圆上的对比度
                 tint = XixiTheme.colors.onCheck.copy(alpha = tickAlpha),
                 modifier = Modifier.size(14.dp)
@@ -249,54 +250,25 @@ fun AssigneeCheckbox(
     }
 }
 
-/** Checklist 按钮 24dp：细线 × / 绿勾 ✓ */
+/** 删除叉号 24dp：点击删除（非重要任务直接删，重要任务由父级弹 Inline Confirm） */
 @Composable
-fun ChecklistButton(
-    checked: Boolean,
-    onToggle: () -> Unit,
+fun DeleteButton(
+    onDelete: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val scale by animateFloatAsState(
-        targetValue = if (checked) 1.06f else 1f,
-        animationSpec = tween(durationMillis = 250),
-        label = "checklist_scale"
-    )
-    val tickAlpha by animateFloatAsState(
-        targetValue = if (checked) 1f else 0f,
-        animationSpec = tween(durationMillis = 200),
-        label = "checklist_tick"
-    )
-    val crossAlpha by animateFloatAsState(
-        targetValue = if (checked) 0f else 1f,
-        animationSpec = tween(durationMillis = 200),
-        label = "checklist_cross"
-    )
-
     Box(
         modifier = modifier
             .size(24.dp)
-            .scale(scale)
-            .clickableNoRipple(onClick = onToggle),
+            .clip(CircleShape)
+            .clickableNoRipple(onClick = onDelete),
         contentAlignment = Alignment.Center
     ) {
-        // 细线 ×
-        if (crossAlpha > 0.01f) {
-            Icon(
-                imageVector = Icons.Default.Close,
-                contentDescription = "标记完成",
-                tint = XixiTheme.colors.textTertiary.copy(alpha = crossAlpha),
-                modifier = Modifier.size(18.dp)
-            )
-        }
-        // 绿色勾 ✓（专用「完成绿」，与统一强调色刻意区分）
-        if (tickAlpha > 0.01f) {
-            Icon(
-                imageVector = Icons.Default.Check,
-                contentDescription = "取消完成",
-                tint = XixiTheme.colors.check.copy(alpha = tickAlpha),
-                modifier = Modifier.size(20.dp)
-            )
-        }
+        Icon(
+            imageVector = Icons.Default.Close,
+            contentDescription = stringResource(R.string.cd_delete_task),
+            tint = XixiTheme.colors.textTertiary,
+            modifier = Modifier.size(18.dp)
+        )
     }
 }
 
@@ -381,25 +353,6 @@ fun GroupHeaderRow(
             modifier = Modifier
                 .size(20.dp)
                 .rotate(arrowRotation)
-        )
-    }
-}
-
-/** SEPARATED 模式下的分隔线 */
-@Composable
-fun AssignedDivider(modifier: Modifier = Modifier) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = Spacing.lg, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.Start
-    ) {
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .height(1.dp)
-                .background(XixiTheme.colors.outline)
         )
     }
 }

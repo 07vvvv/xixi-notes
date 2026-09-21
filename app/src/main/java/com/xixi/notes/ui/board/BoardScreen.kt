@@ -72,7 +72,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.xixi.notes.R
 import com.xixi.notes.data.preferences.AppPrefs
 import com.xixi.notes.di.LocalAppContainer
-import com.xixi.notes.ui.components.AssignedDivider
 import com.xixi.notes.ui.components.EmptyGroupHint
 import com.xixi.notes.ui.components.GroupHeaderRow
 import com.xixi.notes.ui.components.InlineConfirm
@@ -81,8 +80,7 @@ import com.xixi.notes.ui.components.LiqSortMenuOverlay
 import com.xixi.notes.ui.components.SeekSearchBar
 import com.xixi.notes.ui.components.SortOptionUi
 import com.xixi.notes.ui.components.TaskRow
-import com.xixi.notes.ui.components.TaskRowHeightNoDue
-import com.xixi.notes.ui.components.TaskRowHeightWithDue
+import com.xixi.notes.ui.components.TaskRowHeight
 import com.xixi.notes.ui.components.clickableNoRipple
 import com.xixi.notes.ui.components.colorOf
 import com.xixi.notes.ui.main.AppUiState
@@ -109,7 +107,11 @@ private const val HIDE_THRESHOLD_PX = 50
  * 主屏。
  *
  * 顶部栏：搜索 + 排序 + magnet-select + 「显示已完成」眼睛图标。
- * 列表：轻重缓急四分组（可折叠）或时间排序平铺。
+ * 列表：轻重缓急四分组（可折叠）或按截止日期 / 按创建时间平铺。
+ *
+ * 返回键（由本页 BackHandler 统一处理，优先级高于根 Scaffold 的退出逻辑）：
+ * 1. 收起 Inline Confirm -> 2. 收起排序菜单 -> 3. 收起搜索（含清空关键词）
+ * -> 4. 有统计页筛选：取消筛选并回到统计页 -> 5. 无筛选：退出应用
  */
 @Composable
 fun BoardScreen(
@@ -123,6 +125,10 @@ fun BoardScreen(
     onOpenImageViewer: (Int) -> Unit,
     onSearchExpandedChange: (Boolean) -> Unit,
     onScrollVisibilityChange: (Boolean) -> Unit,
+    /** 返回键且「有筛选」时：取消筛选后回到统计页 */
+    onNavigateStats: () -> Unit,
+    /** 返回键且「无筛选」时：退出应用（退到后台） */
+    onExitApp: () -> Unit,
     modifier: Modifier = Modifier,
     /** 从统计页传入的筛选参数（象限名或 OVERDUE），null 表示不筛选 */
     initialFilter: String? = null,
@@ -140,17 +146,9 @@ fun BoardScreen(
         initialValue = AppPrefs()
     )
 
-    // 统计页点击带来的筛选条件：进入主屏后立即应用
+    // 统计页点击带来的筛选条件：进入主屏后写入 SavedStateHandle（进程重建后仍可恢复）
     LaunchedEffect(initialFilter) {
-        val parsed = when (initialFilter) {
-            null -> BoardFilter.None
-            OVERDUE_FILTER -> BoardFilter.Overdue
-            else -> runCatching { Quadrant.valueOf(initialFilter) }
-                .getOrNull()
-                ?.let { BoardFilter.QuadrantOnly(it) }
-                ?: BoardFilter.None
-        }
-        viewModel.setFilter(parsed)
+        viewModel.setFilter(parseFilterArg(initialFilter))
     }
 
     // 排序菜单与确认态
@@ -270,11 +268,24 @@ fun BoardScreen(
         }
     }
 
-    BackHandler(enabled = state.searchExpanded || sortMenuOpen || confirmingTaskId != null) {
+    // 返回键优先级：确认框 -> 排序菜单 -> 搜索 -> 取消筛选回统计页 -> 退出应用
+    BackHandler(
+        enabled = state.searchExpanded ||
+            sortMenuOpen ||
+            confirmingTaskId != null ||
+            (state.filterActive && state.entryFilterToken != null)
+    ) {
         when {
             confirmingTaskId != null -> confirmingTaskId = null
             sortMenuOpen -> sortMenuOpen = false
             state.searchExpanded -> viewModel.closeSearch()
+            // 从统计页筛选进入：先取消筛选，再回到统计页
+            state.filterActive && state.entryFilterToken != null -> {
+                viewModel.clearFilter()
+                onNavigateStats()
+            }
+            // 没有筛选：退出应用（退到后台，不销毁任务状态）
+            else -> onExitApp()
         }
     }
 
@@ -411,20 +422,11 @@ fun BoardScreen(
                                 }
                             }
 
-                            is BoardRow.Divider -> item(key = row.key) {
-                                AssignedDivider()
-                            }
-
                             is BoardRow.TaskRowItem -> item(key = row.key) {
                                 // 折叠时行高平滑收缩至 0，只保留分组头部
                                 val isFolded = state.foldedGroups[row.quadrant.groupKey] == true
-                                val naturalHeight = if (row.task.dueDate != null) {
-                                    TaskRowHeightWithDue
-                                } else {
-                                    TaskRowHeightNoDue
-                                }
                                 val itemHeight by animateDpAsState(
-                                    targetValue = if (isFolded) 0.dp else naturalHeight + 8.dp,
+                                    targetValue = if (isFolded) 0.dp else TaskRowHeight + 8.dp,
                                     animationSpec = tween(300, easing = GentleEasing),
                                     label = "row_height"
                                 )
@@ -449,19 +451,24 @@ fun BoardScreen(
                                         } else {
                                             0f
                                         },
-                                        showSeparatedAssigned = row.separatedAssigned,
-                                        onToggleAssigned = {
-                                            viewModel.toggleAssigned(row.task)
-                                        },
-                                        onToggleChecklist = {
+                                        // 左圆圈：完成 / 取消完成（3 秒内可撤销）
+                                        onToggleCheck = {
                                             mainViewModel.toggleCheck(row.task)
+                                        },
+                                        // 右叉号：非重要直接删除 + 撤销，重要先原地确认
+                                        onDelete = {
+                                            if (row.task.isImportant) {
+                                                confirmingTaskId = row.task.id
+                                            } else {
+                                                mainViewModel.deleteWithUndo(row.task)
+                                            }
                                         },
                                         onClick = {
                                             confirmingTaskId = null
                                             onOpenEditor(row.task.id)
                                         },
                                         onLongPress = {
-                                            // 重要事项：inline confirm；其余：延迟删除 + 撤销
+                                            // 长按保留为删除快捷入口，规则与叉号一致
                                             if (row.task.isImportant) {
                                                 confirmingTaskId = row.task.id
                                             } else {
@@ -484,10 +491,10 @@ fun BoardScreen(
                                         onCancel = { confirmingTaskId = null }
                                     )
 
-                                    // 撤销条（紧贴该行下方）
+                                    // 撤销条（紧贴该行下方）：完成 / 取消完成的撤销
                                     AnimatedVisibility(
                                         visible = undo != null &&
-                                            undo.uncheckTaskId == row.task.id,
+                                            undo.checkUndoTaskId == row.task.id,
                                         enter = fadeIn(tween(180, easing = GentleEasing)),
                                         exit = fadeOut(tween(140, easing = GentleEasing))
                                     ) {
@@ -510,9 +517,10 @@ fun BoardScreen(
             }
         }
 
-        // 底部撤销条（删除撤销：任务已不在列表里）
+        // 底部撤销条：仅用于删除撤销（任务已不在列表里，无法贴在行下）
+        // 完成 / 取消完成的撤销是行内条（见上方 AnimatedVisibility）
         AnimatedVisibility(
-            visible = undo != null && undo.restore != null,
+            visible = undo != null && undo.checkUndoTaskId == null,
             enter = fadeIn(tween(180, easing = GentleEasing)) +
                 scaleIn(initialScale = 0.96f, animationSpec = tween(200, easing = GentleEasing)),
             exit = fadeOut(tween(140, easing = GentleEasing)),
@@ -580,12 +588,35 @@ fun BoardScreen(
     }
 }
 
-/** 排序菜单选项 */
+/** 排序菜单选项：轻重缓急排序 / 按截止日期 / 按创建时间 */
+@Composable
 private fun sortOptions(current: SortMode): List<SortOptionUi> = listOf(
-    SortOptionUi(SortMode.PRIORITY.name, "轻重缓急", current == SortMode.PRIORITY),
-    SortOptionUi(SortMode.TIME_ASC.name, "时间正序", current == SortMode.TIME_ASC),
-    SortOptionUi(SortMode.TIME_DESC.name, "时间倒序", current == SortMode.TIME_DESC)
+    SortOptionUi(
+        id = SortMode.PRIORITY.name,
+        label = stringResource(R.string.sort_priority),
+        selected = current == SortMode.PRIORITY
+    ),
+    SortOptionUi(
+        id = SortMode.DUE_DATE.name,
+        label = stringResource(R.string.sort_due_date),
+        selected = current == SortMode.DUE_DATE
+    ),
+    SortOptionUi(
+        id = SortMode.CREATED_AT.name,
+        label = stringResource(R.string.sort_created_at),
+        selected = current == SortMode.CREATED_AT
+    )
 )
+
+/** 路由参数（象限名或 OVERDUE）-> 筛选条件 */
+private fun parseFilterArg(raw: String?): BoardFilter = when (raw) {
+    null -> BoardFilter.None
+    OVERDUE_FILTER -> BoardFilter.Overdue
+    else -> runCatching { Quadrant.valueOf(raw) }
+        .getOrNull()
+        ?.let { BoardFilter.QuadrantOnly(it) }
+        ?: BoardFilter.None
+}
 
 /** 筛选条文案 */
 @Composable

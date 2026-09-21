@@ -24,9 +24,9 @@
 
     <!-- 排序菜单 -->
     <string name="sort_menu_title">排序方式</string>
-    <string name="sort_priority">轻重缓急</string>
-    <string name="sort_time_asc">时间正序</string>
-    <string name="sort_time_desc">时间倒序</string>
+    <string name="sort_priority">轻重缓急排序</string>
+    <string name="sort_due_date">按截止日期</string>
+    <string name="sort_created_at">按创建时间</string>
 
     <!-- 四象限 -->
     <string name="quadrant_important_urgent">重要且紧急</string>
@@ -39,8 +39,9 @@
     <string name="quadrant_neither_short">轻缓</string>
 
     <!-- 事项行 -->
-    <string name="cd_toggle_assigned">切换我的任务</string>
-    <string name="cd_toggle_checklist">标记完成</string>
+    <string name="cd_complete_task">标记完成</string>
+    <string name="cd_uncomplete_task">取消完成</string>
+    <string name="cd_delete_task">删除任务</string>
     <string name="cd_has_image">含图片</string>
     <string name="cd_expand_group">展开分组</string>
     <string name="cd_collapse_group">折叠分组</string>
@@ -68,7 +69,6 @@
     <string name="editor_field_description_placeholder">补充说明（可选）</string>
     <string name="editor_tag_important">重要</string>
     <string name="editor_tag_urgent">紧急</string>
-    <string name="editor_assigned">我来做</string>
     <string name="editor_checklist">已完成</string>
     <string name="editor_field_due_date">截止日期</string>
     <string name="editor_field_reminder">提醒时间</string>
@@ -158,10 +158,6 @@
     <string name="settings_completed_style">已完成任务显示方式</string>
     <string name="settings_completed_in_place">原位显示</string>
     <string name="settings_completed_hidden">隐藏</string>
-    <string name="settings_assignee_mode">我来做排序</string>
-    <string name="settings_assignee_first">已勾选优先</string>
-    <string name="settings_assignee_visual">仅视觉区分</string>
-    <string name="settings_assignee_separated">分隔线区分</string>
     <string name="settings_default_reminder">默认提醒提前分钟数</string>
     <string name="settings_default_reminder_value">%1$d 分钟</string>
     <string name="settings_notification_action">通知点击行为</string>

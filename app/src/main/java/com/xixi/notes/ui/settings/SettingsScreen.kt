@@ -48,7 +48,6 @@ import com.xixi.notes.BuildConfig
 import com.xixi.notes.R
 import com.xixi.notes.data.preferences.NotificationActionMode
 import com.xixi.notes.di.LocalAppContainer
-import com.xixi.notes.ui.board.AssigneeMode
 import com.xixi.notes.ui.board.CompletedStyle
 import com.xixi.notes.ui.components.InlineConfirm
 import com.xixi.notes.ui.components.clickableNoRipple
@@ -147,22 +146,6 @@ fun SettingsScreen(
                         ),
                         selected = prefs.completedStyle,
                         onSelect = viewModel::setCompletedStyle
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(CardGap))
-
-                SettingCard {
-                    SettingLabel(title = stringResource(R.string.settings_assignee_mode))
-                    Spacer(modifier = Modifier.height(Spacing.md))
-                    SegmentedOptions(
-                        options = listOf(
-                            AssigneeMode.ASSIGNEE_FIRST to stringResource(R.string.settings_assignee_first),
-                            AssigneeMode.VISUAL_ONLY to stringResource(R.string.settings_assignee_visual),
-                            AssigneeMode.SEPARATED to stringResource(R.string.settings_assignee_separated)
-                        ),
-                        selected = prefs.assigneeMode,
-                        onSelect = viewModel::setAssigneeMode
                     )
                 }
 

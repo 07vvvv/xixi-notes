@@ -8,7 +8,6 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
-import com.xixi.notes.ui.board.AssigneeMode
 import com.xixi.notes.ui.board.CompletedStyle
 import com.xixi.notes.ui.board.SortMode
 import com.xixi.notes.ui.theme.ThemeMode
@@ -41,7 +40,6 @@ val ONBOARDING_SHOWN = booleanPreferencesKey("onboarding_shown")
 /** 首次启动的权限申请是否已发起（通知 + 精确闹钟只申请一次） */
 val PERMISSIONS_REQUESTED = booleanPreferencesKey("permissions_requested")
 val COMPLETED_STYLE = stringPreferencesKey("completed_style")
-val ASSIGNEE_MODE = stringPreferencesKey("assignee_mode")
 val SORT_MODE = stringPreferencesKey("sort_mode")
 val DEFAULT_REMINDER_MINUTES = intPreferencesKey("default_reminder_minutes")
 val NOTIFICATION_ACTION = stringPreferencesKey("notification_action")
@@ -53,7 +51,6 @@ val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "xi
 /** 应用偏好快照 */
 data class AppPrefs(
     val completedStyle: CompletedStyle = CompletedStyle.IN_PLACE,
-    val assigneeMode: AssigneeMode = AssigneeMode.SEPARATED,
     val sortMode: SortMode = SortMode.PRIORITY,
     val defaultReminderMinutes: Int = 10,
     val notificationAction: NotificationActionMode = NotificationActionMode.OPEN_EDIT,
@@ -72,8 +69,7 @@ class AppPreferences(private val dataStore: DataStore<Preferences>) {
     val prefs: Flow<AppPrefs> = dataStore.data.map { p ->
         AppPrefs(
             completedStyle = p[COMPLETED_STYLE].toEnum(CompletedStyle.IN_PLACE),
-            assigneeMode = p[ASSIGNEE_MODE].toEnum(AssigneeMode.SEPARATED),
-            sortMode = p[SORT_MODE].toEnum(SortMode.PRIORITY),
+            sortMode = p[SORT_MODE].toSortMode(),
             defaultReminderMinutes = p[DEFAULT_REMINDER_MINUTES] ?: 10,
             notificationAction = p[NOTIFICATION_ACTION].toEnum(NotificationActionMode.OPEN_EDIT),
             themeMode = p[THEME_MODE].toEnum(ThemeMode.FOLLOW_SYSTEM),
@@ -107,10 +103,6 @@ class AppPreferences(private val dataStore: DataStore<Preferences>) {
 
     suspend fun setCompletedStyle(style: CompletedStyle) {
         dataStore.edit { it[COMPLETED_STYLE] = style.name }
-    }
-
-    suspend fun setAssigneeMode(mode: AssigneeMode) {
-        dataStore.edit { it[ASSIGNEE_MODE] = mode.name }
     }
 
     suspend fun setDefaultReminderMinutes(minutes: Int) {
@@ -150,6 +142,24 @@ private inline fun <reified T : Enum<T>> String?.toEnum(fallback: T): T {
         enumValueOf<T>(this)
     } catch (e: IllegalArgumentException) {
         fallback
+    }
+}
+
+/**
+ * 排序模式的容错解析（读取旧数据时的映射规则）。
+ *
+ * - 当前值 PRIORITY / DUE_DATE / CREATED_AT 原样返回
+ * - 旧值 TIME_ASC / TIME_DESC（时间正序 / 时间倒序）统一映射为 [SortMode.DUE_DATE]
+ * - 其它未知值回落为 [SortMode.PRIORITY]
+ */
+private fun String?.toSortMode(): SortMode {
+    if (this == null) return SortMode.PRIORITY
+    return when (this) {
+        SortMode.PRIORITY.name -> SortMode.PRIORITY
+        SortMode.DUE_DATE.name -> SortMode.DUE_DATE
+        SortMode.CREATED_AT.name -> SortMode.CREATED_AT
+        "TIME_ASC", "TIME_DESC" -> SortMode.DUE_DATE
+        else -> SortMode.PRIORITY
     }
 }
 

@@ -16,8 +16,14 @@ private const val MINUTE_MS = 60_000L
 /** 统一的日期时间格式：yyyy-MM-dd HH:mm（本地时区） */
 private val dateTimeFormat = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
 
+/** 任务行右侧使用的紧凑格式：MM-dd HH:mm（如 09-22 14:30） */
+private val shortDateTimeFormat = SimpleDateFormat("MM-dd HH:mm", Locale.getDefault())
+
 /** 格式化时间戳为 yyyy-MM-dd HH:mm */
 fun formatDateTime(millis: Long): String = dateTimeFormat.format(Date(millis))
+
+/** 格式化时间戳为 MM-dd HH:mm（任务行右侧截止时间） */
+fun formatShortDateTime(millis: Long): String = shortDateTimeFormat.format(Date(millis))
 
 /** 系统本地化的完整日期时间（通知副标题等） */
 fun formatLocalizedDateTime(millis: Long): String =

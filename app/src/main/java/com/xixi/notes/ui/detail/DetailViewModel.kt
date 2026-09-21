@@ -143,6 +143,12 @@ class DetailViewModel(
 
     fun toggleUrgent() = update { it.copy(isUrgent = !it.isUrgent) }
 
+    /**
+     * 兼容保留：编辑页已移除「我来做」勾选控件，界面不再调用。
+     *
+     * 保留该字段与入口只为让保存链路原样透传数据库中的历史值
+     * （[com.xixi.notes.data.local.TaskEntity.isAssignedToMe] 字段保留但不使用）。
+     */
     fun toggleAssigned() = update { it.copy(isAssignedToMe = !it.isAssignedToMe) }
 
     fun toggleCheckedOff() = update { it.copy(isCheckedOff = !it.isCheckedOff) }
@@ -179,12 +185,11 @@ class DetailViewModel(
     private fun computeHasChanges(current: DetailUiState): Boolean {
         val base = original
         if (base == null) {
-            // 新建：有任何内容即算修改（图片也会算）
+            // 新建：有任何内容即算修改（图片也会算）；assignee 已不再由界面编辑，不参与判断
             return current.title.isNotBlank() ||
                 current.description.isNotBlank() ||
                 current.isImportant ||
                 current.isUrgent ||
-                current.isAssignedToMe ||
                 current.isCheckedOff ||
                 current.dueDate != null ||
                 current.reminderTime != null ||
@@ -194,7 +199,6 @@ class DetailViewModel(
             current.description != base.description.orEmpty() ||
             current.isImportant != base.isImportant ||
             current.isUrgent != base.isUrgent ||
-            current.isAssignedToMe != base.isAssignedToMe ||
             current.isCheckedOff != base.isCheckedOff ||
             current.dueDate != base.dueDate ||
             current.reminderTime != base.reminderTime ||

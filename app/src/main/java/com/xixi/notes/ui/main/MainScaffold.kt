@@ -281,7 +281,15 @@ fun MainScaffold(
                         navController.navigate(Routes.imageViewer(index))
                     },
                     onSearchExpandedChange = { searchExpanded = it },
-                    onScrollVisibilityChange = { visible -> fabVisibleByScroll = visible }
+                    onScrollVisibilityChange = { visible -> fabVisibleByScroll = visible },
+                    // 返回键：有筛选时取消筛选并回统计页，无筛选时退出应用
+                    onNavigateStats = {
+                        navController.navigate(Routes.STATS) {
+                            popUpTo(Routes.BOARD)
+                            launchSingleTop = true
+                        }
+                    },
+                    onExitApp = { (context as? Activity)?.moveTaskToBack(true) }
                 )
             }
 

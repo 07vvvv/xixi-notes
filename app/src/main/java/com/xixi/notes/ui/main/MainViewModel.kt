@@ -35,8 +35,10 @@ data class UndoSlot(
     val restore: TaskEntity? = null,
     /** 撤销时是否要清掉待执行的图片删除 */
     val cancelImageDeletionTaskId: Long? = null,
-    /** 撤销的完成状态（完成 -> 撤销则为取消完成） */
-    val uncheckTaskId: Long? = null
+    /** 需要还原完成状态的任务 id（完成 <-> 取消完成 都可以撤销） */
+    val checkUndoTaskId: Long? = null,
+    /** 撤销要还原到的完成状态：true = 还原为已完成，false = 还原为未完成 */
+    val checkUndoRestoreTo: Boolean = false
 )
 
 /** 一次性的界面提示（替代 Snackbar） */
@@ -139,16 +141,16 @@ class MainViewModel(
             if (next) {
                 // 任务完成：取消已有提醒
                 runCatching { reminderScheduler.cancel(task.id) }
-                pushUndo(
-                    UndoSlot(
-                        token = ++tokenCounter,
-                        message = "已完成「${task.title}」",
-                        uncheckTaskId = task.id
-                    )
-                )
-            } else {
-                clearUndo()
             }
+            // 完成与取消完成都提供 3 秒撤销，撤销后还原到本次操作之前的状态
+            pushUndo(
+                UndoSlot(
+                    token = ++tokenCounter,
+                    message = if (next) "已完成「${task.title}」" else "已取消完成「${task.title}」",
+                    checkUndoTaskId = task.id,
+                    checkUndoRestoreTo = task.isCheckedOff
+                )
+            )
         }
     }
 
@@ -193,7 +195,7 @@ class MainViewModel(
         viewModelScope.launch {
             slot.restore?.let { repository.restoreTask(it) }
             slot.cancelImageDeletionTaskId?.let { onCancelImageDeletion(it) }
-            slot.uncheckTaskId?.let { repository.setCheckedOff(it, false) }
+            slot.checkUndoTaskId?.let { repository.setCheckedOff(it, slot.checkUndoRestoreTo) }
             clearUndo()
             onCompleted()
         }
