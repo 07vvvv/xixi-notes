@@ -45,6 +45,12 @@ object XixiTheme {
         @Composable
         @ReadOnlyComposable
         get() = LocalAccentPalette.current
+
+    /** 语义形状集合（不随深浅色变化） */
+    val shapes: XixiShapesToken
+        @Composable
+        @ReadOnlyComposable
+        get() = XixiShapesSet
 }
 
 /**

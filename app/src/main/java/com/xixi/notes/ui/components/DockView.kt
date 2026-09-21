@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -37,6 +38,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
@@ -45,12 +48,19 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.xixi.notes.R
+import com.xixi.notes.ui.theme.Spacing
+import com.xixi.notes.ui.theme.XixiElevation
+import com.xixi.notes.ui.theme.XixiTheme
 import com.xixi.notes.ui.util.GentleEasing
 import kotlin.math.cos
 import kotlin.math.max
 
-/** Dock 高度 */
+/** Dock 外层卡片高度 */
 val DockHeight: Dp = 64.dp
+
+/** Dock 卡片内边距（留白） */
+private val DockPaddingH = 8.dp
+private val DockPaddingV = 6.dp
 
 /** 每个标签占位宽度 */
 private val TabWidth = 64.dp
@@ -66,6 +76,7 @@ enum class DockTab(@param:StringRes val labelRes: Int) {
     SETTINGS(R.string.dock_settings)
 }
 
+/** Dock 标签图标 */
 private fun DockTab.icon(): ImageVector = when (this) {
     DockTab.BOARD -> Icons.Default.Home
     DockTab.STATS -> Icons.Default.BarChart
@@ -76,7 +87,8 @@ private fun DockTab.icon(): ImageVector = when (this) {
 /**
  * 底部 Dock：4 标签，只缩放 glyph，无背景 tile。
  *
- * - 选中项下方 4dp 实心圆点，选中时显示文字
+ * - 外层为圆角小卡片（纯色底 + 柔和阴影 + 内边距），不再是一条贴边的裸 Row
+ * - 选中项下方 4dp 实心圆点（统一强调色），选中时显示文字
  * - 悬停 / 按压放大：`f = max(0, (1 + cos(180° * d / 3)) / 2)`
  * - `translateY(8px * f * -1) scale(1 + 1.32f - f)`
  * - 滚动时整体缩放（由 [scale] 驱动），始终可见
@@ -89,7 +101,7 @@ fun DockView(
     modifier: Modifier = Modifier
 ) {
     val density = LocalDensity.current
-    Row(
+    Surface(
         modifier = modifier
             .fillMaxWidth()
             .height(DockHeight)
@@ -97,20 +109,29 @@ fun DockView(
                 scaleX = scale
                 scaleY = scale
                 // 缩放围绕底部中心，避免整体上浮
-                transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0.5f, 1f)
+                transformOrigin = TransformOrigin(0.5f, 1f)
             },
-        horizontalArrangement = Arrangement.SpaceEvenly,
-        verticalAlignment = Alignment.CenterVertically
+        shape = XixiTheme.shapes.dock,
+        color = XixiTheme.colors.card,
+        shadowElevation = XixiElevation.floating
     ) {
-        DockTab.entries.forEachIndexed { index, tab ->
-            DockTabItem(
-                tab = tab,
-                selected = tab == selected,
-                selectedIndex = selected.ordinal,
-                index = index,
-                liftPx = with(density) { 8.dp.toPx() },
-                onClick = { onSelect(tab) }
-            )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = DockPaddingH, vertical = DockPaddingV),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            DockTab.entries.forEachIndexed { index, tab ->
+                DockTabItem(
+                    tab = tab,
+                    selected = tab == selected,
+                    selectedIndex = selected.ordinal,
+                    index = index,
+                    liftPx = with(density) { 8.dp.toPx() },
+                    onClick = { onSelect(tab) }
+                )
+            }
         }
     }
 }
@@ -168,7 +189,8 @@ private fun DockTabItem(
             Icon(
                 imageVector = tab.icon(),
                 contentDescription = label,
-                tint = if (selected) MaterialTheme.colorScheme.primary
+                // 选中态统一使用强调色，未选中为次要文字色
+                tint = if (selected) XixiTheme.colors.accent
                 else MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier
                     .size(GlyphSize)
@@ -180,7 +202,7 @@ private fun DockTabItem(
             )
         }
 
-        Spacer(modifier = Modifier.height(3.dp))
+        Spacer(modifier = Modifier.height(Spacing.xs))
 
         // 选中项下方 4dp 实心圆点
         Box(
@@ -188,8 +210,7 @@ private fun DockTabItem(
                 .size(4.dp)
                 .clip(CircleShape)
                 .background(
-                    if (selected) MaterialTheme.colorScheme.primary
-                    else androidx.compose.ui.graphics.Color.Transparent
+                    if (selected) XixiTheme.colors.accent else Color.Transparent
                 )
         )
 
@@ -201,9 +222,9 @@ private fun DockTabItem(
         ) {
             Text(
                 text = label,
-                color = MaterialTheme.colorScheme.primary,
-                fontSize = 10.sp,
-                letterSpacing = 0.5.sp,
+                color = XixiTheme.colors.accent,
+                fontSize = 11.sp,
+                letterSpacing = 0.3.sp,
                 modifier = Modifier.padding(top = 2.dp)
             )
         }

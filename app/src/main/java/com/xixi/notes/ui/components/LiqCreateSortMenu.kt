@@ -21,7 +21,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -32,6 +31,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.boundsInWindow
@@ -45,6 +45,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import com.xixi.notes.R
+import com.xixi.notes.ui.theme.XixiRadius
+import com.xixi.notes.ui.theme.XixiTheme
 import com.xixi.notes.ui.util.GentleEasing
 import com.xixi.notes.ui.util.LIQ_EXPAND_DURATION
 import kotlinx.coroutines.delay
@@ -56,8 +58,8 @@ val LiqButtonSize: Dp = 46.dp
 val LiqPanelWidth: Dp = 212.dp
 val LiqPanelHeight: Dp = 190.dp
 
-/** 面板圆角 */
-private val LiqPanelRadius: Dp = 26.dp
+/** 面板圆角（与主题弹层圆角一致） */
+private val LiqPanelRadius: Dp = XixiRadius.sheet
 
 /** 面板与按钮之间的间距 */
 private val LiqPanelGap: Dp = 6.dp
@@ -71,6 +73,9 @@ private val LiqPanelGap: Dp = 6.dp
  * 父级尺寸计算，若把 212×190 的面板放在这里，它会先被 56dp 的父级约束夹扁、
  * 再被顶部栏裁剪，结果只露出半行文字。所以面板必须由 [LiqSortMenuOverlay]
  * 在根部全屏层渲染。
+ *
+ * 视觉：使用内嵌凹槽底色 + 极细描边 + 主文字色图标（与搜索框同一套"次级控件"视觉，
+ * 保持顶部栏克制，不与主按钮 / FAB 的强调色抢视觉）。
  *
  * @param onAnchor 上报按钮在窗口坐标系中的边界，供面板对齐
  */
@@ -105,7 +110,8 @@ fun LiqSortButton(
                 scaleY = pressScale
             }
             .clip(CircleShape)
-            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .background(XixiTheme.colors.sunken)
+            .border(width = 1.dp, color = XixiTheme.colors.outline, shape = CircleShape)
             .onGloballyPositioned { coordinates ->
                 val bounds = coordinates.boundsInWindow()
                 onAnchor(bounds.left, bounds.top, bounds.width, bounds.height)
@@ -116,7 +122,7 @@ fun LiqSortButton(
         Icon(
             imageVector = Icons.AutoMirrored.Filled.Sort,
             contentDescription = stringResource(R.string.cd_sort),
-            tint = MaterialTheme.colorScheme.onSurface,
+            tint = XixiTheme.colors.textPrimary,
             modifier = Modifier.size(20.dp)
         )
     }
@@ -125,10 +131,10 @@ fun LiqSortButton(
 /**
  * 排序菜单覆盖层：在根部全屏层渲染，绝对定位贴在排序按钮右下方。
  *
- * - 212dp × 190dp、圆角 26dp，liq-create 风格原地展开
+ * - 212dp × 190dp、圆角 28dp，liq-create 风格原地展开
  * - 展开延迟 95ms、480ms 同曲线（无 overshoot）
  * - 菜单项延迟 70 + i * 38ms
- * - 选中项左侧彩色竖条 + 文字加粗
+ * - 选中项左侧彩色竖条（统一强调色）+ 文字加粗
  * - 透明全屏点击层：点击外部（含列表、空白、Dock）自动收起
  * - 空间不足（靠近屏幕底部）时自动向上展开，保证完整可见
  *
@@ -197,10 +203,10 @@ fun LiqSortMenuOverlay(
                 .width(LiqPanelWidth * progress)
                 .height(LiqPanelHeight * progress)
                 .clip(RoundedCornerShape(LiqPanelRadius * progress))
-                .background(MaterialTheme.colorScheme.surface)
+                .background(XixiTheme.colors.cardElevated)
                 .border(
                     width = 1.dp,
-                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f),
+                    color = XixiTheme.colors.outline,
                     shape = RoundedCornerShape(LiqPanelRadius * progress)
                 )
                 // 吃掉落在面板上的指针事件，避免误触发底层的"点击外部收起"
@@ -235,11 +241,12 @@ fun LiqSortMenuOverlay(
                         }
                     }
 
+                    // 选中项：强调色 + 加粗；未选中：次要文字色 + 常规字重
                     val textColor by animateColorAsState(
                         targetValue = if (option.selected) {
-                            MaterialTheme.colorScheme.primary
+                            XixiTheme.colors.accent
                         } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
+                            XixiTheme.colors.textSecondary
                         },
                         animationSpec = tween(durationMillis = 220),
                         label = "liq_item_color_$index"
@@ -255,20 +262,20 @@ fun LiqSortMenuOverlay(
                         // 选中项左侧彩色竖条
                         Box(
                             modifier = Modifier
-                                .padding(start = 10.dp)
+                                .padding(start = 12.dp)
                                 .width(3.dp)
                                 .height(22.dp)
-                                .clip(RoundedCornerShape(2.dp))
+                                .clip(RoundedCornerShape(percent = 50))
                                 .background(
-                                    if (option.selected) MaterialTheme.colorScheme.primary
-                                    else MaterialTheme.colorScheme.surface
+                                    if (option.selected) XixiTheme.colors.accent
+                                    else Color.Transparent
                                 )
                         )
                         Text(
                             text = option.label,
                             color = textColor.copy(alpha = 0.35f + 0.65f * itemProgress),
                             fontSize = 14.sp,
-                            letterSpacing = 0.5.sp,
+                            letterSpacing = 0.3.sp,
                             fontWeight = if (option.selected) FontWeight.Bold else FontWeight.Normal,
                             modifier = Modifier.padding(start = 12.dp)
                         )

@@ -3,6 +3,7 @@ package com.xixi.notes.ui.components
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
@@ -14,7 +15,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -23,7 +23,6 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalTextStyle
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -39,15 +38,20 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.xixi.notes.R
+import com.xixi.notes.ui.theme.XixiTheme
 import com.xixi.notes.ui.util.GentleEasing
 
 /** 闭合直径 */
 private val COLLAPSED = 44.dp
+
+/** 内嵌底色描边宽度（极细，仅用于拉开与页面背景的层次） */
+private val FIELD_BORDER = 1.dp
 
 /**
  * Seek 搜索框（无状态）。
@@ -58,6 +62,8 @@ private val COLLAPSED = 44.dp
  * - p = (w - 44) / (OPEN - 44)，占位符透明度取后三分之一
  * - 按压先压缩 90ms，焦点随扩展到达
  * - 磁铁效果：位移最大 7dp，打开后归零
+ *
+ * 视觉：底色使用"内嵌凹槽"色，文字主色，放大镜 / 关闭为次要色，占位符为辅助色，光标为强调色。
  */
 @Composable
 fun SeekSearchBar(
@@ -120,12 +126,17 @@ fun SeekSearchBar(
             .width(currentWidth * pressScale),
         contentAlignment = Alignment.CenterStart
     ) {
-        // 背景：闭合为圆形，展开过渡为胶囊
+        // 背景：闭合为圆形，展开过渡为胶囊；纯色内嵌底 + 极细描边
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .clip(if (progress > 0.55f) RoundedCornerShape(percent = 50) else CircleShape)
-                .background(MaterialTheme.colorScheme.surfaceVariant)
+                .clip(if (progress > 0.55f) XixiTheme.shapes.pill else CircleShape)
+                .background(XixiTheme.colors.sunken)
+                .border(
+                    width = FIELD_BORDER,
+                    color = XixiTheme.colors.outline,
+                    shape = if (progress > 0.55f) XixiTheme.shapes.pill else CircleShape
+                )
                 .clickableNoRipple(
                     interactionSource = interactionSource,
                     onClick = { if (!expanded) onExpandRequest() }
@@ -138,11 +149,12 @@ fun SeekSearchBar(
                 onValueChange = onValueChange,
                 singleLine = true,
                 textStyle = LocalTextStyle.current.copy(
-                    color = MaterialTheme.colorScheme.onSurface,
-                    fontSize = 14.sp,
-                    letterSpacing = 0.5.sp
+                    color = XixiTheme.colors.textPrimary,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Normal,
+                    letterSpacing = 0.3.sp
                 ),
-                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                cursorBrush = SolidColor(XixiTheme.colors.accent),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                 keyboardActions = KeyboardActions(onSearch = {
                     focusManager.clearFocus()
@@ -150,7 +162,7 @@ fun SeekSearchBar(
                 }),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 40.dp, end = 38.dp)
+                    .padding(start = 42.dp, end = 40.dp)
                     .focusRequester(focusRequester)
             )
         }
@@ -158,10 +170,11 @@ fun SeekSearchBar(
         if (placeholderAlpha > 0.01f) {
             Text(
                 text = stringResource(R.string.search_placeholder),
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = placeholderAlpha),
+                // 辅助信息：更小更淡，使用三级文字色
+                color = XixiTheme.colors.textTertiary.copy(alpha = placeholderAlpha),
                 fontSize = 14.sp,
-                letterSpacing = 0.5.sp,
-                modifier = Modifier.padding(start = 40.dp)
+                letterSpacing = 0.3.sp,
+                modifier = Modifier.padding(start = 42.dp)
             )
         }
 
@@ -169,7 +182,7 @@ fun SeekSearchBar(
         Icon(
             imageVector = Icons.Default.Search,
             contentDescription = stringResource(R.string.cd_search),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            tint = XixiTheme.colors.textSecondary,
             modifier = Modifier
                 .padding(start = 13.dp)
                 .size(18.dp)
@@ -181,7 +194,7 @@ fun SeekSearchBar(
                 modifier = Modifier
                     .align(Alignment.CenterEnd)
                     .padding(end = 10.dp)
-                    .size(24.dp)
+                    .size(26.dp)
                     .clip(CircleShape)
                     .clickableNoRipple {
                         onValueChange("")
@@ -192,7 +205,7 @@ fun SeekSearchBar(
                 Icon(
                     imageVector = Icons.Default.Close,
                     contentDescription = stringResource(R.string.action_close),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = closeAlpha),
+                    tint = XixiTheme.colors.textSecondary.copy(alpha = closeAlpha),
                     modifier = Modifier.size(16.dp)
                 )
             }

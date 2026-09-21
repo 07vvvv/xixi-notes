@@ -169,6 +169,20 @@ val WarningDark = Color(0xFFFBBF24)
 val WarningLight = Color(0xFFD97706)
 
 // ---------------------------------------------------------------------------
+// 「完成」专用的独立绿色（刻意不并入统一强调色）
+// ---------------------------------------------------------------------------
+
+/**
+ * 勾选框 / 勾选按钮 / 完成高亮的专用绿。
+ * 「完成」是特殊交互状态，用独立绿色比跟强调色统一更容易识别；
+ * 深浅模式共用同一个绿，保证勾选态在两种主题下观感一致。
+ */
+val CheckGreen = Color(0xFF22C55E)
+
+/** 绿色勾选框内对勾的颜色（深一档的墨绿，保证在绿底上的对比度） */
+val OnCheckGreen = Color(0xFF062814)
+
+// ---------------------------------------------------------------------------
 // 应用自定义色板
 // ---------------------------------------------------------------------------
 
@@ -210,7 +224,11 @@ data class XixiColors(
     /** 危险底上的前景文字 */
     val onDangerContainer: Color,
     /** 警告语义色 */
-    val warning: Color
+    val warning: Color,
+    /** 「完成」专用绿（不并入强调色） */
+    val check: Color,
+    /** 绿底上的对勾颜色 */
+    val onCheck: Color
 )
 
 /** 深色模式色板 */
@@ -233,7 +251,9 @@ val XixiColorsDark = XixiColors(
     danger = DangerDark,
     dangerContainer = DangerContainerDark,
     onDangerContainer = OnDangerContainerDark,
-    warning = WarningDark
+    warning = WarningDark,
+    check = CheckGreen,
+    onCheck = OnCheckGreen
 )
 
 /** 浅色模式色板 */
@@ -256,7 +276,9 @@ val XixiColorsLight = XixiColors(
     danger = DangerLight,
     dangerContainer = DangerContainerLight,
     onDangerContainer = OnDangerContainerLight,
-    warning = WarningLight
+    warning = WarningLight,
+    check = CheckGreen,
+    onCheck = OnCheckGreen
 )
 
 // ---------------------------------------------------------------------------

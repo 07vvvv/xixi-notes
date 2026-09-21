@@ -3,6 +3,8 @@ package com.xixi.notes.ui.theme
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.Typography
+import androidx.compose.runtime.Immutable
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -162,6 +164,33 @@ val XixiPillShape = RoundedCornerShape(percent = 50)
 
 /** 便捷形状：底部面板（28dp） */
 val XixiSheetShape = RoundedCornerShape(XixiRadius.sheet)
+
+/**
+ * 语义形状集合：供组件通过 `XixiTheme.shapes.xxx` 取用，
+ * 避免各页面继续硬编码 `RoundedCornerShape(12.dp)` 这类魔法值。
+ */
+@Immutable
+data class XixiShapesToken(
+    /** 缩略图 / 内嵌小面板（10dp） */
+    val thumbnail: Shape = XixiThumbnailShape,
+    /** 输入框 / 小容器（12dp） */
+    val small: Shape = XixiSmallShape,
+    /** 条目卡片 / 中号容器（16dp） */
+    val item: Shape = XixiItemShape,
+    /** 主卡片（20dp） */
+    val card: Shape = XixiCardShape,
+    /** 大卡片 / 分组卡片（24dp） */
+    val largeCard: Shape = XixiLargeCardShape,
+    /** 弹层 / 底部面板（28dp） */
+    val sheet: Shape = XixiSheetShape,
+    /** 胶囊 */
+    val pill: Shape = XixiPillShape,
+    /** Dock 与底部悬浮条（24dp，上圆角更明显） */
+    val dock: Shape = XixiLargeCardShape
+)
+
+/** 唯一形状集合实例（形状不随深浅色变化） */
+val XixiShapesSet = XixiShapesToken()
 
 // ---------------------------------------------------------------------------
 // 间距

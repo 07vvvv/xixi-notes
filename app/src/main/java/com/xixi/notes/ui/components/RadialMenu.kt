@@ -18,7 +18,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -47,7 +46,9 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import com.xixi.notes.R
 import com.xixi.notes.ui.board.Quadrant
+import com.xixi.notes.ui.theme.OnAccentDark
 import com.xixi.notes.ui.theme.QuadrantColors
+import com.xixi.notes.ui.theme.XixiElevation
 import com.xixi.notes.ui.theme.XixiTheme
 import com.xixi.notes.ui.util.GentleEasing
 import kotlinx.coroutines.delay
@@ -135,6 +136,9 @@ fun nearestFanSector(dx: Float, dy: Float): Quadrant {
  * - 展开时 FAB 图标旋转 45°（+ 变 ×）
  * - 四个按钮依次弹开（每个延迟 40ms，spring 带过冲），从 FAB 中心 scale 0 弹到 scale 1
  * - 支持点击选择与拖动选择；点击遮罩收起
+ *
+ * 视觉：FAB 使用全 App 统一强调色（前景为强调色专用文字色）；
+ * 四个象限按钮保持各自的象限固定色，按钮文字使用统一的深色前景以保证四色底上的对比度。
  */
 @Composable
 fun RadialMenuHost(
@@ -269,7 +273,7 @@ fun RadialMenuHost(
                             scaleY = progress
                             alpha = progress.coerceIn(0f, 1f)
                         }
-                        .shadow(4.dp, CircleShape)
+                        .shadow(XixiElevation.cardStrong, CircleShape)
                         .clip(CircleShape)
                         .background(quadrantColors.colorOf(sector.quadrant))
                         .clickableNoRipple { currentSelect(sector.quadrant) },
@@ -277,10 +281,11 @@ fun RadialMenuHost(
                 ) {
                     Text(
                         text = stringResource(sector.quadrant.shortTitleRes),
-                        color = Color.White,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium,
-                        letterSpacing = 0.5.sp,
+                        // 四象限色均为中高明度，统一用深色前景保证对比度
+                        color = OnAccentDark,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        letterSpacing = 0.3.sp,
                         textAlign = TextAlign.Center,
                         maxLines = 1
                     )
@@ -297,9 +302,9 @@ fun RadialMenuHost(
                 )
                 .size(FabSize)
                 .zIndex(1f)
-                .shadow(6.dp, CircleShape)
+                .shadow(XixiElevation.fab, CircleShape)
                 .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.primary)
+                .background(XixiTheme.colors.accent)
                 .clickableNoRipple { onToggle() },
             contentAlignment = Alignment.Center
         ) {
@@ -308,7 +313,7 @@ fun RadialMenuHost(
                 contentDescription = stringResource(
                     if (open) R.string.cd_radial_close else R.string.cd_new_task
                 ),
-                tint = MaterialTheme.colorScheme.onPrimary,
+                tint = XixiTheme.colors.onAccent,
                 modifier = Modifier
                     .size(24.dp)
                     .rotate(fabRotation)
