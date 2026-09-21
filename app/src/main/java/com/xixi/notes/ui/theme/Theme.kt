@@ -46,10 +46,13 @@ object XixiTheme {
         @ReadOnlyComposable
         get() = LocalAccentPalette.current
 
-    /** 语义形状集合（不随深浅色变化） */
+    /**
+     * 语义形状集合（不随深浅色变化）。
+     *
+     * 注意：这里刻意**不加** `@Composable`——形状是常量，加注解会强制只能在
+     * @Composable 作用域读取，导致顶层 val（如 DockShape）无法使用它。
+     */
     val shapes: XixiShapesToken
-        @Composable
-        @ReadOnlyComposable
         get() = XixiShapesSet
 }
 

@@ -26,7 +26,6 @@ import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Home
@@ -49,7 +48,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.xixi.notes.R
 import com.xixi.notes.ui.theme.Spacing
-import com.xixi.notes.ui.theme.XixiRadius
 import com.xixi.notes.ui.theme.XixiTheme
 import com.xixi.notes.ui.util.GentleEasing
 import kotlin.math.abs
@@ -72,13 +70,8 @@ private val GlyphSize = 22.dp
 /** 选中项下方圆点尺寸 */
 private val DotSize = 5.dp
 
-/** Dock 卡片圆角 */
-private val DockShape = RoundedCornerShape(XixiRadius.largeCard)
-
-/** 底部系统栏 ∪ 输入法 的 insets（Dock 自身负责避让，外部不要再加内边距） */
-private val DockBottomInsets = WindowInsets.navigationBars
-    .only(WindowInsetsSides.Bottom)
-    .union(WindowInsets.ime)
+/** Dock 卡片圆角（形状是常量，可在顶层安全读取） */
+private val DockShape = XixiTheme.shapes.dock
 
 /** 4 个标签（文字统一走 strings.xml，仅用于无障碍朗读，界面不再显示文字） */
 enum class DockTab(@param:StringRes val labelRes: Int) {
@@ -105,7 +98,7 @@ private fun DockTab.icon(): ImageVector = when (this) {
  *   圆角由 [clip] 控制，行为完全可控。
  * - 深色背景只画在 Dock 卡片自身上（不再由外部绘制整宽整高的背景条），
  *   避免切换标签时那一块不透明深色区域闪出。
- * - 底部系统栏 / 输入法避让由 Dock 自己通过 [DockBottomInsets] 处理，
+ * - 底部系统栏 / 输入法避让由 Dock 自己处理（见函数内的 dockBottomInsets），
  *   外部（MainScaffold）不要再叠加 `windowInsetsPadding`，否则 insets 会被算两次。
  *
  * 动效（未改动）：
@@ -125,10 +118,17 @@ fun DockView(
     val shadowElevationPx = with(density) {
         (if (XixiTheme.colors.isDark) 3.dp else 5.dp).toPx()
     }
+    // 底部系统栏 ∪ 输入法 的 insets。
+    // 注意：WindowInsets.navigationBars / WindowInsets.ime 都是 @Composable 取值器，
+    // 只能在 @Composable 作用域内读取，不能放进顶层 val，否则会编译失败：
+    // "@Composable invocations can only happen from the context of a @Composable function"
+    val dockBottomInsets = WindowInsets.navigationBars
+        .only(WindowInsetsSides.Bottom)
+        .union(WindowInsets.ime)
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .windowInsetsPadding(DockBottomInsets)
+            .windowInsetsPadding(dockBottomInsets)
             .padding(horizontal = Spacing.lg)
             .padding(bottom = Spacing.sm)
             .height(DockHeight)

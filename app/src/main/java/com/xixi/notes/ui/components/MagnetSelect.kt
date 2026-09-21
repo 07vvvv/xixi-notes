@@ -30,13 +30,20 @@ private val ORB = 36.dp
 /** 相邻球心间距 */
 private val PITCH = 44.dp
 
-/** 三颗球固定颜色：跟随系统 / 深色 / 浅色（取自主题强调色板三档） */
-private val ColorFollowSystem: Color
-    @Composable get() = XixiTheme.accent.followSystem
-private val ColorDark: Color
-    @Composable get() = XixiTheme.accent.dark
-private val ColorLight: Color
-    @Composable get() = XixiTheme.accent.light
+/**
+ * 三颗球固定颜色：跟随系统 / 深色 / 浅色。
+ *
+ * 用 @Composable 函数（而不是带 `@Composable get()` 的属性）读取强调色板，
+ * 语义更直白，也不会踩"属性上标注 @Composable"这类编译限制。
+ */
+@Composable
+private fun followSystemColor(): Color = XixiTheme.accent.followSystem
+
+@Composable
+private fun darkModeColor(): Color = XixiTheme.accent.dark
+
+@Composable
+private fun lightModeColor(): Color = XixiTheme.accent.light
 
 /** 每步延迟 */
 private const val STEP_DELAY_MS = 22
@@ -56,7 +63,7 @@ fun MagnetSelect(
     modifier: Modifier = Modifier
 ) {
     val options = listOf(ThemeMode.FOLLOW_SYSTEM, ThemeMode.DARK, ThemeMode.LIGHT)
-    val colors = listOf(ColorFollowSystem, ColorDark, ColorLight)
+    val colors = listOf(followSystemColor(), darkModeColor(), lightModeColor())
     val selectedIndex = options.indexOf(mode).coerceAtLeast(0)
 
     Layout(
