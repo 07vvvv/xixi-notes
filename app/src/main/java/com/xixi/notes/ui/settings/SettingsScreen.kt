@@ -9,6 +9,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,13 +21,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -37,6 +37,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -51,6 +52,10 @@ import com.xixi.notes.ui.board.AssigneeMode
 import com.xixi.notes.ui.board.CompletedStyle
 import com.xixi.notes.ui.components.InlineConfirm
 import com.xixi.notes.ui.components.clickableNoRipple
+import com.xixi.notes.ui.main.canScheduleExactAlarms
+import com.xixi.notes.ui.main.hasNotificationPermission
+import com.xixi.notes.ui.main.openExactAlarmSettings
+import com.xixi.notes.ui.main.openNotificationSettings
 import com.xixi.notes.ui.theme.ThemeMode
 import com.xixi.notes.ui.theme.XixiTheme
 import com.xixi.notes.ui.util.GentleEasing
@@ -70,7 +75,9 @@ fun SettingsScreen(
     )
 ) {
     val prefs by viewModel.prefs.collectAsStateWithLifecycle()
+    val context = LocalContext.current
     var notificationMenuOpen by remember { mutableStateOf(false) }
+    var themeMenuOpen by remember { mutableStateOf(false) }
     var onboardingConfirm by remember { mutableStateOf(false) }
 
     Box(
@@ -156,7 +163,14 @@ fun SettingsScreen(
                         description = null
                     )
                     Spacer(modifier = Modifier.height(10.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // 横向可滚动，每项固定 72dp × 36dp，不换行
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         ReminderMinuteOptions.forEach { minutes ->
                             MinuteChip(
                                 minutes = minutes,
@@ -172,33 +186,99 @@ fun SettingsScreen(
                 // ------------------------------------------------------ 主题
                 SectionTitle(stringResource(R.string.settings_section_theme))
 
-                SettingCard {
-                    SettingLabel(
-                        title = stringResource(R.string.cd_theme_mode),
-                        description = stringResource(
-                            when (prefs.themeMode) {
-                                ThemeMode.FOLLOW_SYSTEM -> R.string.theme_follow_system
-                                ThemeMode.DARK -> R.string.theme_dark
-                                ThemeMode.LIGHT -> R.string.theme_light
-                            }
+                SettingCard(modifier = Modifier.animateContentSize(tween(280, easing = GentleEasing))) {
+                    // 主题模式：liq-create 风格原地展开 3 选项
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickableNoRipple { themeMenuOpen = !themeMenuOpen }
+                            .padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(R.string.settings_theme_mode),
+                                color = XixiTheme.colors.textPrimary,
+                                fontSize = 14.sp,
+                                letterSpacing = 0.5.sp
+                            )
+                            Spacer(modifier = Modifier.height(3.dp))
+                            Text(
+                                text = stringResource(
+                                    when (prefs.themeMode) {
+                                        ThemeMode.FOLLOW_SYSTEM -> R.string.theme_follow_system
+                                        ThemeMode.DARK -> R.string.theme_dark
+                                        ThemeMode.LIGHT -> R.string.theme_light
+                                    }
+                                ),
+                                color = MaterialTheme.colorScheme.primary,
+                                fontSize = 13.sp,
+                                letterSpacing = 0.5.sp
+                            )
+                        }
+                        Box(
+                            modifier = Modifier
+                                .size(20.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    if (themeMenuOpen) XixiTheme.colors.textPrimary
+                                    else XixiTheme.colors.textSecondary
+                                )
                         )
+                    }
+
+                    AnimatedVisibility(
+                        visible = themeMenuOpen,
+                        enter = fadeIn(tween(180, easing = GentleEasing)) +
+                            expandVertically(tween(260, easing = GentleEasing)),
+                        exit = fadeOut(tween(140, easing = GentleEasing)) +
+                            shrinkVertically(tween(220, easing = GentleEasing))
+                    ) {
+                        Column(modifier = Modifier.padding(top = 10.dp)) {
+                            ThemeMode.entries.forEach { mode ->
+                                val selected = prefs.themeMode == mode
+                                ThemeOptionRow(
+                                    label = stringResource(
+                                        when (mode) {
+                                            ThemeMode.FOLLOW_SYSTEM ->
+                                                R.string.theme_follow_system
+                                            ThemeMode.DARK -> R.string.theme_dark
+                                            ThemeMode.LIGHT -> R.string.theme_light
+                                        }
+                                    ),
+                                    // 三种模式固定颜色：跟随系统 #A1A1AA / 深色 #A78BFA / 浅色 #6EE7B7
+                                    accent = when (mode) {
+                                        ThemeMode.FOLLOW_SYSTEM -> Color(0xFFA1A1AA)
+                                        ThemeMode.DARK -> Color(0xFFA78BFA)
+                                        ThemeMode.LIGHT -> Color(0xFF6EE7B7)
+                                    },
+                                    selected = selected,
+                                    onClick = {
+                                        viewModel.setThemeMode(mode)
+                                        themeMenuOpen = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                // ------------------------------------------------------ 权限
+                SectionTitle(stringResource(R.string.settings_section_permission))
+
+                SettingCard {
+                    PermissionRow(
+                        title = stringResource(R.string.settings_notification_permission),
+                        granted = hasNotificationPermission(context),
+                        onOpen = { openNotificationSettings(context) }
                     )
-                    Spacer(modifier = Modifier.height(10.dp))
-                    SegmentedOptions(
-                        options = listOf(
-                            ThemeMode.FOLLOW_SYSTEM to stringResource(R.string.theme_follow_system),
-                            ThemeMode.DARK to stringResource(R.string.theme_dark),
-                            ThemeMode.LIGHT to stringResource(R.string.theme_light)
-                        ),
-                        selected = prefs.themeMode,
-                        onSelect = viewModel::setThemeMode
-                    )
-                    Spacer(modifier = Modifier.height(14.dp))
-                    SwitchRow(
-                        title = stringResource(R.string.settings_dynamic_color),
-                        description = stringResource(R.string.settings_dynamic_color_desc),
-                        checked = prefs.dynamicColor,
-                        onCheckedChange = viewModel::setDynamicColor
+                    Spacer(modifier = Modifier.height(6.dp))
+                    PermissionRow(
+                        title = stringResource(R.string.settings_exact_alarm_permission),
+                        granted = canScheduleExactAlarms(context),
+                        onOpen = { openExactAlarmSettings(context) }
                     )
                 }
 
@@ -452,7 +532,7 @@ private fun <T> SegmentedOptions(
     }
 }
 
-/** 提醒分钟数选项 */
+/** 提醒分钟数选项：固定 72dp × 36dp，选中为主题强调色背景 + 白字 */
 @Composable
 private fun MinuteChip(
     minutes: Int,
@@ -460,36 +540,72 @@ private fun MinuteChip(
     onClick: () -> Unit
 ) {
     val background by animateColorAsState(
-        targetValue = if (selected) XixiTheme.colors.textPrimary.copy(alpha = 0.12f)
-        else Color.Transparent,
+        targetValue = if (selected) MaterialTheme.colorScheme.primary
+        else MaterialTheme.colorScheme.surfaceVariant,
         animationSpec = tween(durationMillis = 220),
         label = "minute_bg"
     )
     Box(
         modifier = Modifier
-            .clip(RoundedCornerShape(10.dp))
+            .size(width = 72.dp, height = 36.dp)
+            .clip(RoundedCornerShape(12.dp))
             .background(background)
-            .clickableNoRipple(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 7.dp)
+            .clickableNoRipple(onClick = onClick),
+        contentAlignment = Alignment.Center
     ) {
         Text(
             text = stringResource(R.string.settings_default_reminder_value, minutes),
+            color = if (selected) Color.White else XixiTheme.colors.textSecondary,
+            fontSize = 12.sp,
+            letterSpacing = 0.5.sp,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+            maxLines = 1
+        )
+    }
+}
+
+/** 主题模式选项：选中项左侧彩色竖条 + 文字加粗（liq-create 风格） */
+@Composable
+private fun ThemeOptionRow(
+    label: String,
+    accent: Color,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .clickableNoRipple(onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // 选中项左侧彩色竖条
+        Box(
+            modifier = Modifier
+                .width(3.dp)
+                .height(18.dp)
+                .clip(RoundedCornerShape(2.dp))
+                .background(if (selected) accent else Color.Transparent)
+        )
+        Spacer(modifier = Modifier.width(10.dp))
+        Text(
+            text = label,
             color = if (selected) XixiTheme.colors.textPrimary
             else XixiTheme.colors.textSecondary,
-            fontSize = 12.sp,
+            fontSize = 14.sp,
             letterSpacing = 0.5.sp,
             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
         )
     }
 }
 
-/** 开关行 */
+/** 权限状态行：已开启 / 未开启 + 「去开启」 */
 @Composable
-private fun SwitchRow(
+private fun PermissionRow(
     title: String,
-    description: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
+    granted: Boolean,
+    onOpen: () -> Unit
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -504,19 +620,31 @@ private fun SwitchRow(
             )
             Spacer(modifier = Modifier.height(3.dp))
             Text(
-                text = description,
-                color = XixiTheme.colors.textSecondary,
+                text = stringResource(
+                    if (granted) R.string.settings_permission_granted
+                    else R.string.settings_permission_denied
+                ),
+                color = if (granted) Color(0xFF22C55E) else Color(0xFFEF4444),
                 fontSize = 12.sp,
                 letterSpacing = 0.5.sp
             )
         }
-        Switch(
-            checked = checked,
-            onCheckedChange = onCheckedChange,
-            colors = SwitchDefaults.colors(
-                checkedThumbColor = XixiTheme.colors.background,
-                checkedTrackColor = XixiTheme.quadrant.importantUrgent
-            )
-        )
+        if (!granted) {
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(MaterialTheme.colorScheme.primary)
+                    .clickableNoRipple(onClick = onOpen)
+                    .padding(horizontal = 14.dp, vertical = 8.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.settings_permission_open),
+                    color = Color.White,
+                    fontSize = 12.sp,
+                    letterSpacing = 0.5.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+        }
     }
 }

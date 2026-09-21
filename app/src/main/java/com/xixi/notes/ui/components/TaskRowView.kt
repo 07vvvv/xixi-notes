@@ -38,11 +38,13 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.xixi.notes.R
 import com.xixi.notes.data.local.TaskEntity
 import com.xixi.notes.ui.board.Quadrant
 import com.xixi.notes.ui.theme.XixiTheme
@@ -105,7 +107,8 @@ fun TaskRow(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 3.dp)
-            .clip(RoundedCornerShape(12.dp))
+            .shadow(2.dp, RoundedCornerShape(16.dp))
+            .clip(RoundedCornerShape(16.dp))
             .background(XixiTheme.colors.card)
             .background(highlightColor)
     ) {
@@ -121,7 +124,7 @@ fun TaskRow(
                     onClick = onClick,
                     onLongClick = onLongPress
                 )
-                .padding(horizontal = 12.dp, vertical = 10.dp),
+                .padding(horizontal = 16.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             // 分隔线模式下，已勾选「我来做」的任务再加一层视觉区分
@@ -343,7 +346,9 @@ fun GroupHeaderRow(
         // 折叠箭头：折叠时旋转 -90°
         Icon(
             imageVector = Icons.Default.KeyboardArrowDown,
-            contentDescription = if (folded) "展开分组" else "折叠分组",
+            contentDescription = stringResource(
+                if (folded) R.string.cd_expand_group else R.string.cd_collapse_group
+            ),
             tint = XixiTheme.colors.textSecondary,
             modifier = Modifier
                 .size(20.dp)
@@ -367,6 +372,23 @@ fun AssignedDivider(modifier: Modifier = Modifier) {
                 .weight(1f)
                 .height(1.dp)
                 .background(XixiTheme.colors.textSecondary.copy(alpha = 0.25f))
+        )
+    }
+}
+
+/** 空分类提示：分组展开但没有任何任务时显示在头部下方 */
+@Composable
+fun EmptyGroupHint(modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 12.dp)
+    ) {
+        Text(
+            text = stringResource(R.string.group_empty_hint),
+            color = XixiTheme.colors.textSecondary,
+            fontSize = 13.sp,
+            letterSpacing = 0.5.sp
         )
     }
 }

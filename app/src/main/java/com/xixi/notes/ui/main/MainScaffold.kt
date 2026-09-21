@@ -25,10 +25,6 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -39,11 +35,12 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -62,8 +59,8 @@ import com.xixi.notes.ui.board.Quadrant
 import com.xixi.notes.ui.components.DockHeight
 import com.xixi.notes.ui.components.DockTab
 import com.xixi.notes.ui.components.DockView
-import com.xixi.notes.ui.components.RadialMenuOverlay
-import com.xixi.notes.ui.components.clickableNoRipple
+import com.xixi.notes.ui.components.FabSize
+import com.xixi.notes.ui.components.RadialMenuHost
 import com.xixi.notes.ui.detail.DetailScreen
 import com.xixi.notes.ui.onboarding.OnboardingScreen
 import com.xixi.notes.ui.settings.SettingsScreen
@@ -84,9 +81,15 @@ object Routes {
     const val ARCHIVE = "archive"
     const val IMAGE_VIEWER = "image_viewer"
 
+    /** 主屏可带筛选参数：board?filter=IMPORTANT_URGENT / OVERDUE */
+    const val BOARD_PATTERN = "$BOARD?filter={filter}"
+
     /** edit/{taskId}?quadrant={quadrantName}；taskId = -1 表示新建 */
     const val EDIT_PATTERN = "$EDIT/{taskId}?quadrant={quadrant}"
     const val IMAGE_VIEWER_PATTERN = "$IMAGE_VIEWER/{initialIndex}"
+
+    fun board(filter: String? = null): String =
+        if (filter == null) BOARD else "$BOARD?filter=$filter"
 
     fun edit(taskId: Long, quadrant: String? = null): String =
         if (quadrant == null) "$EDIT/$taskId" else "$EDIT/$taskId?quadrant=$quadrant"
@@ -114,10 +117,14 @@ private fun String?.toDockTab(): DockTab = when {
  * 根 Scaffold。
  *
  * 层级（自下而上）：
- * NavHost -> RadialMenuOverlay -> Dock -> FAB
+ * NavHost -> RadialMenu（遮罩 + 象限按钮）-> Dock -> FAB
+ *
+ * @param onboardingShown 引导页是否已展示过（false 时起始路由为 onboarding）
  */
 @Composable
-fun MainScaffold() {
+fun MainScaffold(
+    onboardingShown: Boolean
+) {
     val container = LocalAppContainer.current
     val context = LocalContext.current
     val navController = rememberNavController()
@@ -155,9 +162,14 @@ fun MainScaffold() {
         label = "dock_scroll_scale"
     )
 
-    // FAB 中心坐标（Radial Menu 以它为圆心）
-    var fabCenterX by remember { mutableStateOf(0f) }
-    var fabCenterY by remember { mutableStateOf(0f) }
+    // FAB 中心坐标（Radial Menu 以它为圆心）。
+    // 用屏幕尺寸初始化，避免首帧测得 (0,0) 导致菜单闪现在左上角
+    val configuration = LocalConfiguration.current
+    val density = LocalDensity.current
+    val defaultFabX = with(density) { configuration.screenWidthDp.dp.toPx() } / 2f
+    val defaultFabY = with(density) { configuration.screenHeightDp.dp.toPx() }
+    var fabCenterX by remember(defaultFabX) { mutableStateOf(defaultFabX) }
+    var fabCenterY by remember(defaultFabY) { mutableStateOf(defaultFabY) }
 
     val isBoard = currentRoute == Routes.BOARD
     val isOnboarding = currentRoute == Routes.ONBOARDING
@@ -174,6 +186,18 @@ fun MainScaffold() {
         }
     }
 
+    // 首次启动权限申请：先通知，后精确闹钟
+    val startupPermission = rememberStartupPermissions(context)
+    LaunchedEffect(onboardingShown, isOnboarding) {
+        if (onboardingShown && !isOnboarding) {
+            val alreadyRequested = container.preferences.isPermissionsRequested()
+            if (!alreadyRequested) {
+                startupPermission.requestAll()
+                container.preferences.setPermissionsRequested(true)
+            }
+        }
+    }
+
     // Dock 缩放：滚动时 0.85，离开主屏时也收缩
     val animatedDockScale by animateFloatAsState(
         targetValue = if (showChrome) scrollingScale else 0.85f,
@@ -181,9 +205,9 @@ fun MainScaffold() {
         label = "dock_scale"
     )
 
-    // FAB 位置随 Dock 缩放同步动画
+    // FAB 到 Dock 上方的距离：24dp + Dock 高度（跟随 Dock 缩放同步动画）
     val fabBottomPadding by animateDpAsState(
-        targetValue = DockHeight * animatedDockScale + 16.dp,
+        targetValue = DockHeight * animatedDockScale + 24.dp,
         animationSpec = tween(durationMillis = 260, easing = GentleEasing),
         label = "fab_bottom"
     )
@@ -203,33 +227,49 @@ fun MainScaffold() {
         // ---------------------------------------------------------- NavHost
         NavHost(
             navController = navController,
-            startDestination = Routes.ONBOARDING,
+            // 引导页只展示一次：读 DataStore 决定起始路由
+            startDestination = if (onboardingShown) Routes.BOARD else Routes.ONBOARDING,
             modifier = Modifier.fillMaxSize()
         ) {
             composable(Routes.ONBOARDING) {
                 OnboardingScreen(
                     onFinish = {
-                        navController.navigate(Routes.BOARD) {
-                            popUpTo(Routes.ONBOARDING) { inclusive = true }
+                        // 先写入 DataStore，再导航，避免下次启动重复弹出
+                        scope.launch {
+                            container.preferences.setOnboardingShown(true)
+                            navController.navigate(Routes.BOARD) {
+                                popUpTo(Routes.ONBOARDING) { inclusive = true }
+                            }
                         }
                     }
                 )
             }
 
-            composable(Routes.BOARD) {
+            composable(
+                route = Routes.BOARD_PATTERN,
+                arguments = listOf(
+                    navArgument("filter") {
+                        type = NavType.StringType
+                        nullable = true
+                        defaultValue = null
+                    }
+                )
+            ) { entry ->
+                val filterArg = entry.arguments?.getString("filter")
                 BoardScreen(
                     mainViewModel = mainViewModel,
                     appState = appState,
                     undo = undo,
                     toast = toast,
                     scrollToTopTick = scrollToTopTick,
+                    listState = listScrollState,
+                    initialFilter = filterArg,
                     onOpenEditor = { taskId -> navController.navigate(Routes.edit(taskId)) },
                     onOpenImageViewer = { index ->
                         navController.navigate(Routes.imageViewer(index))
                     },
                     onSearchExpandedChange = { searchExpanded = it },
-                    onScrollVisibilityChange = { visible -> fabVisibleByScroll = visible },
-                    listState = listScrollState
+                    onScrollVisibilityChange = { visible -> fabVisibleByScroll = visible }
                 )
             }
 
@@ -260,7 +300,21 @@ fun MainScaffold() {
             }
 
             composable(Routes.STATS) {
-                StatsScreen()
+                StatsScreen(
+                    onQuadrantClick = { quadrant ->
+                        navController.navigate(Routes.board(quadrant.name)) {
+                            popUpTo(Routes.BOARD)
+                            launchSingleTop = true
+                        }
+                    },
+                    onCompletedClick = { navController.navigate(Routes.ARCHIVE) },
+                    onOverdueClick = {
+                        navController.navigate(Routes.board(OVERDUE_FILTER)) {
+                            popUpTo(Routes.BOARD)
+                            launchSingleTop = true
+                        }
+                    }
+                )
             }
 
             composable(Routes.ARCHIVE) {
@@ -292,21 +346,6 @@ fun MainScaffold() {
             }
         }
 
-        // ------------------------------------------------- Radial Menu（遮罩 + 菜单）
-        val menuState = radialMenuState
-        if (menuState != null) {
-            RadialMenuOverlay(
-                state = menuState,
-                onSelect = { quadrant ->
-                    // 先关闭菜单，再进编辑页（新建任务预置象限）
-                    container.radialMenuState.value = null
-                    navController.navigate(Routes.edit(-1L, quadrant.name))
-                },
-                onDismiss = { container.radialMenuState.value = null },
-                modifier = Modifier.zIndex(2f)
-            )
-        }
-
         // ------------------------------------------------------------------ Dock
         AnimatedVisibility(
             visible = showChrome,
@@ -336,7 +375,6 @@ fun MainScaffold() {
                         mainViewModel.clearUndo()
                         navController.navigate(route) {
                             popUpTo(Routes.BOARD) {
-                                inclusive = route == Routes.BOARD
                                 saveState = true
                             }
                             launchSingleTop = true
@@ -350,43 +388,53 @@ fun MainScaffold() {
             )
         }
 
-        // ------------------------------------------------------------------- FAB
+        // --------------------------------------------- FAB + 上半圆 Radial Menu
+        // FAB 在屏幕底部水平居中、Dock 上方 24dp；菜单与遮罩都由它托管
         val fabShouldShow = showChrome && isBoard && !searchExpanded && fabVisibleByScroll
+        val radialOpen = radialMenuState != null
+
         AnimatedVisibility(
-            visible = fabShouldShow,
+            visible = fabShouldShow || radialOpen,
             enter = fadeIn(animationSpec = tween(200, easing = GentleEasing)) +
                 scaleIn(initialScale = 0.8f, animationSpec = tween(220, easing = GentleEasing)),
             exit = fadeOut(animationSpec = tween(150, easing = GentleEasing)) +
                 scaleOut(targetScale = 0.8f, animationSpec = tween(160, easing = GentleEasing)),
             modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .zIndex(1f)
-                .padding(end = 20.dp, bottom = fabBottomPadding + 8.dp)
-                .windowInsetsPadding(windowInsets)
+                .align(Alignment.BottomCenter)
+                .zIndex(1.5f)
         ) {
             Box(
                 modifier = Modifier
-                    .size(56.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primary)
+                    .padding(bottom = fabBottomPadding)
+                    .windowInsetsPadding(windowInsets)
+                    // 先测量 FAB 中心，供 Radial Menu 定位
                     .onGloballyPositioned { coordinates ->
                         val bounds = coordinates.boundsInWindow()
                         fabCenterX = bounds.center.x
                         fabCenterY = bounds.center.y
                     }
-                    .clickableNoRipple {
-                        // 打开 Radial Menu：以 FAB 中心为圆心
-                        container.radialMenuState.value = RadialMenuState(fabCenterX, fabCenterY)
-                    },
-                contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = "新建任务",
-                    tint = MaterialTheme.colorScheme.onPrimary,
-                    modifier = Modifier.size(24.dp)
-                )
+                // 占位：真正的 FAB 由 RadialMenuHost 渲染（保证层级与遮罩正确）
+                Box(modifier = Modifier.size(FabSize))
             }
+        }
+
+        // RadialMenuHost 负责遮罩 + 四个象限按钮 + FAB，覆盖全屏
+        if (fabShouldShow || radialOpen) {
+            RadialMenuHost(
+                centerX = fabCenterX,
+                centerY = fabCenterY,
+                open = radialOpen,
+                onToggle = {
+                    container.radialMenuState.value =
+                        if (radialOpen) null else RadialMenuState(fabCenterX, fabCenterY)
+                },
+                onSelect = { quadrant ->
+                    container.radialMenuState.value = null
+                    navController.navigate(Routes.edit(-1L, quadrant.name))
+                },
+                onDismiss = { container.radialMenuState.value = null }
+            )
         }
     }
 

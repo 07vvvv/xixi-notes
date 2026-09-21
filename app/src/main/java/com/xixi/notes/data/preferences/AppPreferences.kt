@@ -13,6 +13,7 @@ import com.xixi.notes.ui.board.CompletedStyle
 import com.xixi.notes.ui.board.SortMode
 import com.xixi.notes.ui.theme.ThemeMode
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
@@ -33,11 +34,16 @@ enum class NotificationActionMode {
 /** 折叠状态键：JSON Map<String, Boolean> */
 val FOLDED_GROUPS = stringPreferencesKey("folded_groups")
 val FIRST_LAUNCH_DONE = booleanPreferencesKey("first_launch_done")
+
+/** 引导页是否已展示（仅首次启动展示一次） */
+val ONBOARDING_SHOWN = booleanPreferencesKey("onboarding_shown")
+
+/** 首次启动的权限申请是否已发起（通知 + 精确闹钟只申请一次） */
+val PERMISSIONS_REQUESTED = booleanPreferencesKey("permissions_requested")
 val COMPLETED_STYLE = stringPreferencesKey("completed_style")
 val ASSIGNEE_MODE = stringPreferencesKey("assignee_mode")
 val SORT_MODE = stringPreferencesKey("sort_mode")
 val DEFAULT_REMINDER_MINUTES = intPreferencesKey("default_reminder_minutes")
-val DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
 val NOTIFICATION_ACTION = stringPreferencesKey("notification_action")
 val THEME_MODE = stringPreferencesKey("theme_mode")
 
@@ -50,9 +56,12 @@ data class AppPrefs(
     val assigneeMode: AssigneeMode = AssigneeMode.SEPARATED,
     val sortMode: SortMode = SortMode.PRIORITY,
     val defaultReminderMinutes: Int = 10,
-    val dynamicColor: Boolean = false,
     val notificationAction: NotificationActionMode = NotificationActionMode.OPEN_EDIT,
     val themeMode: ThemeMode = ThemeMode.FOLLOW_SYSTEM,
+    /** 引导页是否已展示 */
+    val onboardingShown: Boolean = false,
+    /** 首次启动权限申请是否已发起 */
+    val permissionsRequested: Boolean = false,
     /** 四分组折叠状态（仅轻重缓急模式有意义，跨进程保留） */
     val foldedGroups: Map<String, Boolean> = emptyMap()
 )
@@ -66,11 +75,30 @@ class AppPreferences(private val dataStore: DataStore<Preferences>) {
             assigneeMode = p[ASSIGNEE_MODE].toEnum(AssigneeMode.SEPARATED),
             sortMode = p[SORT_MODE].toEnum(SortMode.PRIORITY),
             defaultReminderMinutes = p[DEFAULT_REMINDER_MINUTES] ?: 10,
-            dynamicColor = p[DYNAMIC_COLOR] ?: false,
             notificationAction = p[NOTIFICATION_ACTION].toEnum(NotificationActionMode.OPEN_EDIT),
             themeMode = p[THEME_MODE].toEnum(ThemeMode.FOLLOW_SYSTEM),
+            onboardingShown = p[ONBOARDING_SHOWN] ?: false,
+            permissionsRequested = p[PERMISSIONS_REQUESTED] ?: false,
             foldedGroups = decodeFolded(p[FOLDED_GROUPS])
         )
+    }
+
+    /** 读取引导页是否已展示（启动时决定起始路由） */
+    suspend fun isOnboardingShown(): Boolean =
+        dataStore.data.map { it[ONBOARDING_SHOWN] ?: false }.first()
+
+    /** 标记引导页已展示（写完再导航，避免每次启动重复弹出） */
+    suspend fun setOnboardingShown(shown: Boolean) {
+        dataStore.edit { it[ONBOARDING_SHOWN] = shown }
+    }
+
+    /** 读取首次权限申请是否已发起 */
+    suspend fun isPermissionsRequested(): Boolean =
+        dataStore.data.map { it[PERMISSIONS_REQUESTED] ?: false }.first()
+
+    /** 标记首次权限申请已发起 */
+    suspend fun setPermissionsRequested(requested: Boolean) {
+        dataStore.edit { it[PERMISSIONS_REQUESTED] = requested }
     }
 
     suspend fun setSortMode(mode: SortMode) {
@@ -89,16 +117,21 @@ class AppPreferences(private val dataStore: DataStore<Preferences>) {
         dataStore.edit { it[DEFAULT_REMINDER_MINUTES] = minutes }
     }
 
-    suspend fun setDynamicColor(enabled: Boolean) {
-        dataStore.edit { it[DYNAMIC_COLOR] = enabled }
-    }
-
     suspend fun setNotificationAction(mode: NotificationActionMode) {
         dataStore.edit { it[NOTIFICATION_ACTION] = mode.name }
     }
 
     suspend fun setThemeMode(mode: ThemeMode) {
         dataStore.edit { it[THEME_MODE] = mode.name }
+    }
+
+    /** 一次性写入四个分组的折叠状态（展开/收起全部） */
+    suspend fun setAllGroupsFolded(groupKeys: List<String>, folded: Boolean) {
+        dataStore.edit { p ->
+            val map = decodeFolded(p[FOLDED_GROUPS]).toMutableMap()
+            groupKeys.forEach { key -> map[key] = folded }
+            p[FOLDED_GROUPS] = Json.encodeToString(map)
+        }
     }
 
     /** 更新某个分组的折叠状态 */

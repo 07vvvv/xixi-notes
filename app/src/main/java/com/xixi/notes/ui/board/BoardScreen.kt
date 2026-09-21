@@ -3,8 +3,14 @@ package com.xixi.notes.ui.board
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -33,6 +39,8 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Icon
@@ -64,10 +72,10 @@ import com.xixi.notes.R
 import com.xixi.notes.data.preferences.AppPrefs
 import com.xixi.notes.di.LocalAppContainer
 import com.xixi.notes.ui.components.AssignedDivider
+import com.xixi.notes.ui.components.EmptyGroupHint
 import com.xixi.notes.ui.components.GroupHeaderRow
 import com.xixi.notes.ui.components.InlineConfirm
 import com.xixi.notes.ui.components.LiqCreateSortMenu
-import com.xixi.notes.ui.components.MagnetSelect
 import com.xixi.notes.ui.components.SeekSearchBar
 import com.xixi.notes.ui.components.SortOptionUi
 import com.xixi.notes.ui.components.TaskRow
@@ -78,6 +86,7 @@ import com.xixi.notes.ui.components.colorOf
 import com.xixi.notes.ui.main.AppUiState
 import com.xixi.notes.ui.main.BoardToast
 import com.xixi.notes.ui.main.MainViewModel
+import com.xixi.notes.ui.main.OVERDUE_FILTER
 import com.xixi.notes.ui.main.UndoSlot
 import com.xixi.notes.ui.theme.XixiTheme
 import com.xixi.notes.ui.util.GentleEasing
@@ -106,6 +115,8 @@ fun BoardScreen(
     onSearchExpandedChange: (Boolean) -> Unit,
     onScrollVisibilityChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
+    /** 从统计页传入的筛选参数（象限名或 OVERDUE），null 表示不筛选 */
+    initialFilter: String? = null,
     viewModel: BoardViewModel = viewModel(
         factory = BoardViewModel.Factory(
             LocalAppContainer.current.taskRepository,
@@ -118,6 +129,19 @@ fun BoardScreen(
     val prefs by container.preferences.prefs.collectAsStateWithLifecycle(
         initialValue = AppPrefs()
     )
+
+    // 统计页点击带来的筛选条件：进入主屏后立即应用
+    LaunchedEffect(initialFilter) {
+        val parsed = when (initialFilter) {
+            null -> BoardFilter.None
+            OVERDUE_FILTER -> BoardFilter.Overdue
+            else -> runCatching { Quadrant.valueOf(initialFilter) }
+                .getOrNull()
+                ?.let { BoardFilter.QuadrantOnly(it) }
+                ?: BoardFilter.None
+        }
+        viewModel.setFilter(parsed)
+    }
 
     // 排序菜单与确认态
     var sortMenuOpen by remember { mutableStateOf(false) }
@@ -265,47 +289,40 @@ fun BoardScreen(
                             options = sortOptions(prefs.sortMode),
                             onSelect = { id ->
                                 sortMenuOpen = false
-                                val mode = SortMode.valueOf(id)
-                                container.let { c ->
-                                    c.radialMenuState.value = null
-                                }
-                                viewModel.setSortMode(mode)
+                                viewModel.setSortMode(SortMode.valueOf(id))
                             }
                         )
                     }
 
-                    // magnet-select 三小球
-                    MagnetSelect(
-                        mode = prefs.themeMode,
-                        onModeChange = { mode -> viewModel.setThemeMode(mode) }
-                    )
-
-                    // 「显示已完成」眼睛图标
-                    val hiddenMode = prefs.completedStyle == CompletedStyle.HIDDEN
+                    // 眼睛图标：展开 / 收起全部分类（状态同步 DataStore 的 foldedGroups）
+                    val allFolded = state.allGroupsFolded
                     Box(
                         modifier = Modifier
                             .size(44.dp)
                             .clip(CircleShape)
-                            .clickableNoRipple {
-                                viewModel.setCompletedStyle(
-                                    if (hiddenMode) CompletedStyle.IN_PLACE
-                                    else CompletedStyle.HIDDEN
-                                )
-                            },
+                            .clickableNoRipple { viewModel.toggleAllFolded() },
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = if (hiddenMode) Icons.Default.VisibilityOff
-                            else Icons.Default.Visibility,
+                            imageVector = if (allFolded) Icons.Default.Visibility
+                            else Icons.Default.VisibilityOff,
                             contentDescription = stringResource(
-                                if (hiddenMode) R.string.cd_show_completed
-                                else R.string.cd_hide_completed
+                                if (allFolded) R.string.cd_expand_all_groups
+                                else R.string.cd_collapse_all_groups
                             ),
                             tint = XixiTheme.colors.textPrimary,
                             modifier = Modifier.size(20.dp)
                         )
                     }
                 }
+            }
+
+            // 统计页传入的筛选条件：显示可清除的筛选条
+            if (state.filterActive) {
+                FilterChipRow(
+                    label = filterLabel(state.filter),
+                    onClear = { viewModel.clearFilter() }
+                )
             }
 
             // ------------------------------------------------------------ 列表
@@ -335,13 +352,21 @@ fun BoardScreen(
                     state.rows.forEach { row ->
                         when (row) {
                             is BoardRow.GroupHeader -> item(key = row.key) {
-                                GroupHeaderRow(
-                                    title = stringResource(row.group.quadrant.titleRes),
-                                    count = row.count,
-                                    color = XixiTheme.quadrant.colorOf(row.group.quadrant),
-                                    folded = row.group.isFolded,
-                                    onToggleFold = { viewModel.toggleFolded(row.group.quadrant) }
-                                )
+                                Column {
+                                    GroupHeaderRow(
+                                        title = stringResource(row.group.quadrant.titleRes),
+                                        count = row.count,
+                                        color = XixiTheme.quadrant.colorOf(row.group.quadrant),
+                                        folded = row.group.isFolded,
+                                        onToggleFold = {
+                                            viewModel.toggleFolded(row.group.quadrant)
+                                        }
+                                    )
+                                    // 空分类展开时给出提示，保证四个分类结构始终完整
+                                    if (row.count == 0 && !row.group.isFolded) {
+                                        EmptyGroupHint()
+                                    }
+                                }
                             }
 
                             is BoardRow.Divider -> item(key = row.key) {
@@ -505,6 +530,61 @@ private fun sortOptions(current: SortMode): List<SortOptionUi> = listOf(
     SortOptionUi(SortMode.TIME_DESC.name, "时间倒序", current == SortMode.TIME_DESC)
 )
 
+/** 筛选条文案 */
+@Composable
+private fun filterLabel(filter: BoardFilter): String = when (filter) {
+    is BoardFilter.QuadrantOnly -> stringResource(
+        R.string.filter_label_quadrant,
+        stringResource(filter.quadrant.titleRes)
+    )
+    BoardFilter.Overdue -> stringResource(R.string.filter_label_overdue)
+    BoardFilter.None -> ""
+}
+
+/** 当前筛选条件（可一键清除） */
+@Composable
+private fun FilterChipRow(
+    label: String,
+    onClear: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(
+            modifier = Modifier
+                .clip(RoundedCornerShape(12.dp))
+                .background(XixiTheme.colors.card)
+                .padding(start = 12.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = label,
+                color = XixiTheme.colors.textPrimary,
+                fontSize = 12.sp,
+                letterSpacing = 0.5.sp
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Box(
+                modifier = Modifier
+                    .size(20.dp)
+                    .clip(CircleShape)
+                    .clickableNoRipple(onClick = onClear),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = stringResource(R.string.filter_clear),
+                    tint = XixiTheme.colors.textSecondary,
+                    modifier = Modifier.size(14.dp)
+                )
+            }
+        }
+    }
+}
+
 /** 行内撤销条 */
 @Composable
 private fun UndoInline(
@@ -568,12 +648,40 @@ private fun ToastInline(
     }
 }
 
-/** 主屏空状态 */
+/** 主屏空状态（Compose 自绘动画：淡入 + 放大 + 呼吸，不引入第三方动画库） */
 @Composable
 private fun EmptyBoard(
     searching: Boolean,
     onClear: () -> Unit
 ) {
+    // 入场动画：0.92 -> 1.0 并淡入
+    var appeared by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { appeared = true }
+    val enterScale by animateFloatAsState(
+        targetValue = if (appeared) 1f else 0.92f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "empty_enter_scale"
+    )
+    val enterAlpha by animateFloatAsState(
+        targetValue = if (appeared) 1f else 0f,
+        animationSpec = tween(durationMillis = 320, easing = GentleEasing),
+        label = "empty_enter_alpha"
+    )
+    // 呼吸动画：图标缓慢起伏
+    val infinite = rememberInfiniteTransition(label = "empty_breath")
+    val breath by infinite.animateFloat(
+        initialValue = 0.96f,
+        targetValue = 1.06f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1600, easing = GentleEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "empty_breath_value"
+    )
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -581,7 +689,28 @@ private fun EmptyBoard(
             .padding(32.dp),
         contentAlignment = Alignment.Center
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.graphicsLayer {
+                scaleX = enterScale
+                scaleY = enterScale
+                alpha = enterAlpha
+            }
+        ) {
+            if (!searching) {
+                Icon(
+                    imageVector = Icons.Default.CheckCircle,
+                    contentDescription = null,
+                    tint = XixiTheme.quadrant.importantUrgent.copy(alpha = 0.65f),
+                    modifier = Modifier
+                        .size(56.dp)
+                        .graphicsLayer {
+                            scaleX = breath
+                            scaleY = breath
+                        }
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+            }
             Text(
                 text = stringResource(
                     if (searching) R.string.search_no_result else R.string.board_empty_title

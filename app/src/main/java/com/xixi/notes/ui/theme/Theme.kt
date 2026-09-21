@@ -3,8 +3,6 @@ package com.xixi.notes.ui.theme
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -12,8 +10,6 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
-import android.os.Build
 
 /** 主题模式：跟随系统 / 强制深色 / 强制浅色 */
 enum class ThemeMode {
@@ -87,13 +83,12 @@ object XixiTheme {
  * 应用主题。
  *
  * - 默认跟随系统主题；[mode] 可强制深色 / 浅色
- * - [dynamicColor] 为 true 且 Android 12+ 时使用系统动态取色；
- *   四象限色与 magnet-select 颜色始终固定
+ * - 固定使用本应用配色；四象限色与强调色始终固定
+ * - 不使用系统动态取色（已移除 Android 12+ 的 dynamicColorScheme）
  */
 @Composable
 fun XixiNotesTheme(
     mode: ThemeMode = ThemeMode.FOLLOW_SYSTEM,
-    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val systemDark = isSystemInDarkTheme()
@@ -103,12 +98,8 @@ fun XixiNotesTheme(
         ThemeMode.LIGHT -> false
     }
 
-    val context = LocalContext.current
-    val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            if (dark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
-        dark -> darkColorScheme(
+    val colorScheme = if (dark) {
+        darkColorScheme(
             primary = Color(0xFF6EE7B7),
             onPrimary = Color(0xFF052E22),
             secondary = Color(0xFFA78BFA),
@@ -120,7 +111,8 @@ fun XixiNotesTheme(
             onSurfaceVariant = XixiColorsDark.textSecondary,
             outline = Color(0xFF2A2A2E)
         )
-        else -> lightColorScheme(
+    } else {
+        lightColorScheme(
             primary = Color(0xFF0F766E),
             onPrimary = Color(0xFFFFFFFF),
             secondary = Color(0xFF7C3AED),

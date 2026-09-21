@@ -37,10 +37,6 @@ class SettingsViewModel(private val preferences: AppPreferences) : ViewModel() {
         viewModelScope.launch { preferences.setDefaultReminderMinutes(minutes) }
     }
 
-    fun setDynamicColor(enabled: Boolean) {
-        viewModelScope.launch { preferences.setDynamicColor(enabled) }
-    }
-
     fun setNotificationAction(mode: NotificationActionMode) {
         viewModelScope.launch { preferences.setNotificationAction(mode) }
     }

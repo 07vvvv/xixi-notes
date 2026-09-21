@@ -38,10 +38,12 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.xixi.notes.R
 import com.xixi.notes.ui.util.GentleEasing
 
 /** 闭合直径 */
@@ -88,8 +90,10 @@ fun SeekSearchBar(
     )
 
     val currentWidth: Dp = COLLAPSED + (expandedWidth - COLLAPSED) * progress
-    // 占位符只在展开的最后三分之一显示
-    val placeholderAlpha: Float = ((progress - 2f / 3f) / (1f / 3f)).coerceIn(0f, 1f)
+    // 占位符只在展开的最后三分之一、且输入为空时显示
+    // （有输入时立刻隐藏，避免占位文字与输入内容重叠）
+    val placeholderAlpha: Float =
+        if (value.isEmpty()) ((progress - 2f / 3f) / (1f / 3f)).coerceIn(0f, 1f) else 0f
     val closeAlpha: Float = ((progress - 0.5f) / 0.5f).coerceIn(0f, 1f)
     // 磁铁效果：展开后关闭位移
     val magnetOffset: Dp = 7.dp * (1f - progress)
@@ -98,10 +102,14 @@ fun SeekSearchBar(
     val focusManager = LocalFocusManager.current
     val keyboard = LocalSoftwareKeyboardController.current
 
-    // 焦点随扩展到达
-    LaunchedEffect(expanded, progress) {
-        if (expanded && progress > 0.98f) {
+    // 展开时立即清空输入并聚焦；收起时也清空搜索词
+    LaunchedEffect(expanded) {
+        if (expanded) {
+            onValueChange("")
             runCatching { focusRequester.requestFocus() }
+            keyboard?.show()
+        } else {
+            onValueChange("")
         }
     }
 
@@ -149,7 +157,7 @@ fun SeekSearchBar(
 
         if (placeholderAlpha > 0.01f) {
             Text(
-                text = "搜索任务…",
+                text = stringResource(R.string.search_placeholder),
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = placeholderAlpha),
                 fontSize = 14.sp,
                 letterSpacing = 0.5.sp,
@@ -160,7 +168,7 @@ fun SeekSearchBar(
         // 左侧放大镜：左 inset 13dp
         Icon(
             imageVector = Icons.Default.Search,
-            contentDescription = "搜索",
+            contentDescription = stringResource(R.string.cd_search),
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier
                 .padding(start = 13.dp)
@@ -183,7 +191,7 @@ fun SeekSearchBar(
             ) {
                 Icon(
                     imageVector = Icons.Default.Close,
-                    contentDescription = "关闭搜索",
+                    contentDescription = stringResource(R.string.action_close),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = closeAlpha),
                     modifier = Modifier.size(16.dp)
                 )

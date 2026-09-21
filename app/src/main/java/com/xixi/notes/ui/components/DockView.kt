@@ -2,7 +2,9 @@ package com.xixi.notes.ui.components
 
 import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -142,6 +144,15 @@ private fun DockTabItem(
 
     val glyphScale = 1f + 1.32f * f - f
     val translateY = 8f * f * -1f
+    // 选中项弹性缩放：1.0 -> 1.15 -> 1.0（弹性回弹）
+    val selectScale by animateFloatAsState(
+        targetValue = if (selected) 1.15f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = "dock_select_scale_$index"
+    )
 
     Column(
         modifier = Modifier
@@ -162,8 +173,8 @@ private fun DockTabItem(
                 modifier = Modifier
                     .size(GlyphSize)
                     .graphicsLayer {
-                        scaleX = glyphScale
-                        scaleY = glyphScale
+                        scaleX = glyphScale * selectScale
+                        scaleY = glyphScale * selectScale
                         translationY = translateY * (liftPx / 8f)
                     }
             )

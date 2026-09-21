@@ -118,6 +118,25 @@
     <string name="stats_overdue">逾期</string>
     <string name="stats_empty">还没有统计数据</string>
     <string name="stats_empty_hint">创建一个任务并勾选完成，就能看到统计。</string>
+    <string name="stats_tap_hint">点击卡片查看详情</string>
+
+    <!-- 主屏筛选 / 分组 -->
+    <string name="cd_new_task">新建任务</string>
+    <string name="cd_expand_all_groups">展开全部分类</string>
+    <string name="cd_collapse_all_groups">收起全部分类</string>
+    <string name="group_empty_hint">该分类暂无任务</string>
+    <string name="filter_clear">清除筛选</string>
+    <string name="filter_label_quadrant">已筛选：%1$s</string>
+    <string name="filter_label_overdue">已筛选：仅看逾期</string>
+
+    <!-- 设置页 · 权限 -->
+    <string name="settings_section_permission">权限</string>
+    <string name="settings_notification_permission">通知权限</string>
+    <string name="settings_exact_alarm_permission">精确闹钟权限</string>
+    <string name="settings_permission_granted">已开启</string>
+    <string name="settings_permission_denied">未开启</string>
+    <string name="settings_permission_open">去开启</string>
+    <string name="settings_theme_mode">主题模式</string>
 
     <!-- 归档页 -->
     <string name="archive_title">归档</string>
@@ -143,8 +162,6 @@
     <string name="settings_assignee_separated">分隔线区分</string>
     <string name="settings_default_reminder">默认提醒提前分钟数</string>
     <string name="settings_default_reminder_value">%1$d 分钟</string>
-    <string name="settings_dynamic_color">动态取色</string>
-    <string name="settings_dynamic_color_desc">Android 12+ 使用壁纸颜色（默认关闭）</string>
     <string name="settings_notification_action">通知点击行为</string>
     <string name="settings_notification_open_edit">打开编辑页</string>
     <string name="settings_notification_open_home">打开主页</string>

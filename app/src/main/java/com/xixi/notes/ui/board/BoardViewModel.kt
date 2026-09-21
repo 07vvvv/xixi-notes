@@ -48,6 +48,18 @@ sealed interface BoardEvent {
     data class Error(val message: String) : BoardEvent
 }
 
+/** 主屏筛选条件（由统计页点击传入） */
+sealed interface BoardFilter {
+    /** 单个象限 */
+    data class QuadrantOnly(val quadrant: Quadrant) : BoardFilter
+
+    /** 逾期任务 */
+    data object Overdue : BoardFilter
+
+    /** 没有筛选 */
+    data object None : BoardFilter
+}
+
 /** 主屏 UI 状态 */
 data class BoardUiState(
     val rows: List<BoardRow> = emptyList(),
@@ -56,10 +68,14 @@ data class BoardUiState(
     val query: String = "",
     val searching: Boolean = false,
     val foldedGroups: Map<String, Boolean> = emptyMap(),
-    val hasAnyTask: Boolean = false
+    val hasAnyTask: Boolean = false,
+    val filter: BoardFilter = BoardFilter.None,
+    /** 是否全部四个分组都处于折叠状态（驱动眼睛图标） */
+    val allGroupsFolded: Boolean = false
 ) {
     val isEmpty: Boolean get() = rows.isEmpty()
     val noSearchResult: Boolean get() = searching && rows.isEmpty()
+    val filterActive: Boolean get() = filter != BoardFilter.None
 }
 
 class BoardViewModel(
@@ -73,17 +89,57 @@ class BoardViewModel(
     /** 搜索框是否展开 */
     private val searchExpanded = MutableStateFlow(false)
 
+    /** 统计页传入的筛选条件 */
+    private val activeFilter = MutableStateFlow<BoardFilter>(BoardFilter.None)
+
     /** HIGHLIGHT 定位时临时显示的任务 id（离开主屏复位） */
     private val transientVisible = MutableStateFlow<Set<Long>>(emptySet())
 
-    val uiState: StateFlow<BoardUiState> = combine(
+    /** 供 combine 使用的输入聚合体（kotlinx combine 最多支持 5 个流，这里先两两合并） */
+    private data class BoardInputs(
+        val tasks: List<TaskEntity>,
+        val prefs: AppPrefs,
+        val query: String,
+        val expanded: Boolean,
+        val filter: BoardFilter,
+        val transient: Set<Long>
+    )
+
+    private val baseInputs = combine(
         repository.allTasks,
         preferences.prefs,
         query,
-        searchExpanded,
+        searchExpanded
+    ) { tasks, prefs, currentQuery, expanded ->
+        BoardInputs(
+            tasks = tasks,
+            prefs = prefs,
+            query = currentQuery,
+            expanded = expanded,
+            filter = BoardFilter.None,
+            transient = emptySet()
+        )
+    }
+
+    private val extraInputs = combine(
+        activeFilter,
         transientVisible
-    ) { tasks, prefs, currentQuery, expanded, transient ->
-        buildState(tasks, prefs, currentQuery, expanded, transient)
+    ) { filter, transient ->
+        filter to transient
+    }
+
+    val uiState: StateFlow<BoardUiState> = combine(
+        baseInputs,
+        extraInputs
+    ) { base, extra ->
+        buildState(
+            tasks = base.tasks,
+            prefs = base.prefs,
+            currentQuery = base.query,
+            expanded = base.expanded,
+            filter = extra.first,
+            transient = extra.second
+        )
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
@@ -95,6 +151,7 @@ class BoardViewModel(
         prefs: AppPrefs,
         currentQuery: String,
         expanded: Boolean,
+        filter: BoardFilter,
         transient: Set<Long>
     ): BoardUiState {
         val searching = expanded && currentQuery.isNotBlank()
@@ -106,10 +163,13 @@ class BoardViewModel(
             tasks
         }
 
+        // 统计页筛选
+        val filtered = applyFilter(matched, filter)
+
         // 已完成显示方式：HIDDEN 时排除，但高亮定位的任务临时可见
         val visible = when (prefs.completedStyle) {
-            CompletedStyle.IN_PLACE -> matched
-            CompletedStyle.HIDDEN -> matched.filter { !it.isCheckedOff || it.id in transient }
+            CompletedStyle.IN_PLACE -> filtered
+            CompletedStyle.HIDDEN -> filtered.filter { !it.isCheckedOff || it.id in transient }
         }
 
         val rows = if (searching || prefs.sortMode != SortMode.PRIORITY) {
@@ -118,6 +178,7 @@ class BoardViewModel(
         } else {
             buildGrouped(visible, prefs)
         }
+        val allFolded = Quadrant.ordered.all { prefs.foldedGroups[it.groupKey] == true }
         return BoardUiState(
             rows = rows,
             grouped = !searching && prefs.sortMode == SortMode.PRIORITY,
@@ -125,18 +186,33 @@ class BoardViewModel(
             query = currentQuery,
             searching = searching,
             foldedGroups = prefs.foldedGroups,
-            hasAnyTask = tasks.isNotEmpty()
+            hasAnyTask = tasks.isNotEmpty(),
+            filter = filter,
+            allGroupsFolded = allFolded
         )
     }
 
-    /** 轻重缓急：四分组，组间按优先级，组内主键 assignee、次键创建时间正序 */
+    /** 应用统计页传入的筛选条件 */
+    private fun applyFilter(tasks: List<TaskEntity>, filter: BoardFilter): List<TaskEntity> =
+        when (filter) {
+            is BoardFilter.QuadrantOnly -> tasks.filter { Quadrant.of(it) == filter.quadrant }
+            BoardFilter.Overdue -> tasks.filter {
+                !it.isCheckedOff && it.dueDate != null && it.dueDate < System.currentTimeMillis()
+            }
+            BoardFilter.None -> tasks
+        }
+
+    /**
+     * 轻重缓急：四分组，组间按优先级，组内主键 assignee、次键创建时间正序。
+     *
+     * **四个分组始终全部存在**：即使分组内没有任务，也输出分组头部（名称 + 0 徽章 + 箭头），
+     * 保证用户能看到完整的四象限结构。
+     */
     private fun buildGrouped(tasks: List<TaskEntity>, prefs: AppPrefs): List<BoardRow> {
         val comparator = priorityGroupComparator()
         val rows = mutableListOf<BoardRow>()
         Quadrant.ordered.forEach { quadrant ->
             val groupTasks = tasks.filter { Quadrant.of(it) == quadrant }.sortedWith(comparator)
-            if (groupTasks.isEmpty()) return@forEach
-
             val folded = prefs.foldedGroups[quadrant.groupKey] == true
             val group = TaskQuadrantGroup(
                 quadrant = quadrant,
@@ -145,7 +221,8 @@ class BoardViewModel(
                 isFolded = folded
             )
             rows += BoardRow.GroupHeader(group = group, count = groupTasks.size)
-            if (!folded) {
+            // 折叠或空分组都只保留头部
+            if (!folded && groupTasks.isNotEmpty()) {
                 rows += buildTaskRows(groupTasks, quadrant, prefs)
             }
         }
@@ -228,6 +305,23 @@ class BoardViewModel(
         viewModelScope.launch {
             preferences.setGroupFolded(quadrant.groupKey, !current)
         }
+    }
+
+    /** 眼睛图标：全部展开 / 全部收起（同步 DataStore 的 foldedGroups） */
+    fun toggleAllFolded() {
+        val fold = !uiState.value.allGroupsFolded
+        viewModelScope.launch {
+            preferences.setAllGroupsFolded(Quadrant.ordered.map { it.groupKey }, fold)
+        }
+    }
+
+    /** 设置统计页传入的筛选条件 */
+    fun setFilter(filter: BoardFilter) {
+        activeFilter.value = filter
+    }
+
+    fun clearFilter() {
+        activeFilter.value = BoardFilter.None
     }
 
     /** 切换排序模式（折叠状态仅轻重缓急模式有意义，切走时保留在 DataStore） */
