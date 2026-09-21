@@ -105,6 +105,15 @@ private fun DockTab.route(): String = when (this) {
     DockTab.SETTINGS -> Routes.SETTINGS
 }
 
+/**
+ * 取路由的路径部分（丢掉查询参数）。
+ *
+ * `NavDestination.route` 返回的是**注册时的模式串**，例如主屏注册为
+ * `board?filter={filter}`，直接与 `Routes.BOARD` 比较会永远不相等，
+ * 导致 isBoard / Dock 高亮等判断全部失效。所有比较都必须先归一化。
+ */
+private fun String?.routePath(): String? = this?.substringBefore('?')
+
 private fun String?.toDockTab(): DockTab = when {
     this == null -> DockTab.BOARD
     startsWith(Routes.STATS) -> DockTab.STATS
@@ -171,10 +180,13 @@ fun MainScaffold(
     var fabCenterX by remember(defaultFabX) { mutableStateOf(defaultFabX) }
     var fabCenterY by remember(defaultFabY) { mutableStateOf(defaultFabY) }
 
-    val isBoard = currentRoute == Routes.BOARD
-    val isOnboarding = currentRoute == Routes.ONBOARDING
-    val isEditor = currentRoute?.startsWith(Routes.EDIT) == true
-    val isViewer = currentRoute?.startsWith(Routes.IMAGE_VIEWER) == true
+    // 注意：主屏注册的是 "board?filter={filter}"，currentRoute 会带上查询参数，
+    // 因此这里必须用 routePath() 归一化，否则 isBoard 恒为 false（FAB 会整个不渲染）
+    val currentPath = currentRoute.routePath()
+    val isBoard = currentPath == Routes.BOARD
+    val isOnboarding = currentPath == Routes.ONBOARDING
+    val isEditor = currentPath?.startsWith(Routes.EDIT) == true
+    val isViewer = currentPath?.startsWith(Routes.IMAGE_VIEWER) == true
     val showChrome = !isOnboarding && !isEditor && !isViewer
 
     // 通知导航事件
@@ -401,7 +413,7 @@ fun MainScaffold(
                 scaleOut(targetScale = 0.8f, animationSpec = tween(160, easing = GentleEasing)),
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .zIndex(1.5f)
+                .zIndex(2f)
         ) {
             Box(
                 modifier = Modifier

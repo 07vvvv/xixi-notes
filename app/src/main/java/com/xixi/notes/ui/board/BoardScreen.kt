@@ -52,6 +52,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -75,7 +76,8 @@ import com.xixi.notes.ui.components.AssignedDivider
 import com.xixi.notes.ui.components.EmptyGroupHint
 import com.xixi.notes.ui.components.GroupHeaderRow
 import com.xixi.notes.ui.components.InlineConfirm
-import com.xixi.notes.ui.components.LiqCreateSortMenu
+import com.xixi.notes.ui.components.LiqSortButton
+import com.xixi.notes.ui.components.LiqSortMenuOverlay
 import com.xixi.notes.ui.components.SeekSearchBar
 import com.xixi.notes.ui.components.SortOptionUi
 import com.xixi.notes.ui.components.TaskRow
@@ -92,9 +94,13 @@ import com.xixi.notes.ui.theme.XixiTheme
 import com.xixi.notes.ui.util.GentleEasing
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.launch
 
 /** 排序菜单宽度（用于避让计算） */
 private val SortButtonSize = 46.dp
+
+/** 向下滚动累计超过该距离才隐藏 FAB */
+private const val HIDE_THRESHOLD_PX = 50
 
 /**
  * 主屏。
@@ -125,6 +131,7 @@ fun BoardScreen(
     )
 ) {
     val container = LocalAppContainer.current
+    val scope = rememberCoroutineScope()
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val prefs by container.preferences.prefs.collectAsStateWithLifecycle(
         initialValue = AppPrefs()
@@ -145,6 +152,9 @@ fun BoardScreen(
 
     // 排序菜单与确认态
     var sortMenuOpen by remember { mutableStateOf(false) }
+    // 排序按钮右下角锚点（窗口坐标），供面板定位
+    var sortAnchorX by remember { mutableStateOf(0f) }
+    var sortAnchorY by remember { mutableStateOf(0f) }
     var confirmingTaskId by remember { mutableStateOf<Long?>(null) }
 
     // 高亮闪烁
@@ -160,19 +170,49 @@ fun BoardScreen(
         onSearchExpandedChange(state.searchExpanded)
     }
 
-    // 滚动方向 -> FAB 显隐（向上滚动时隐藏）
-    LaunchedEffect(listState) {
-        var lastOffset = 0
-        snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }
-            .distinctUntilChanged()
-            .collect { (index, offset) ->
-                val current = index * 10_000 + offset
-                val delta = current - lastOffset
-                if (kotlin.math.abs(delta) > 12) {
-                    onScrollVisibilityChange(delta < 0)
+    // 滚动方向 -> FAB 显隐：
+    // - 列表不可滚动（内容不足一屏）时强制保持可见
+    // - 仅向下滚动累计超过 50dp 才隐藏
+    // - 任何向上滚动立即显示
+    // - 回到顶部/离开屏幕时复位为可见
+    DisposableEffect(listState) {
+        val job = scope.launch {
+            var lastOffset = 0
+            var hiddenAccum = 0
+            snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }
+                .distinctUntilChanged()
+                .collect { (index, offset) ->
+                    val canScroll = listState.canScrollForward || listState.canScrollBackward
+                    if (!canScroll) {
+                        // 不可滚动：强制可见
+                        hiddenAccum = 0
+                        lastOffset = 0
+                        onScrollVisibilityChange(true)
+                        return@collect
+                    }
+                    val current = index * 100_000 + offset
+                    val delta = current - lastOffset
                     lastOffset = current
+                    when {
+                        delta < 0 -> {
+                            // 向上滚动：立即显示
+                            hiddenAccum = 0
+                            onScrollVisibilityChange(true)
+                        }
+                        delta > 0 -> {
+                            // 向下滚动：累计超过阈值才隐藏
+                            hiddenAccum += delta
+                            if (hiddenAccum >= HIDE_THRESHOLD_PX) {
+                                onScrollVisibilityChange(false)
+                            }
+                        }
+                    }
                 }
-            }
+        }
+        onDispose {
+            job.cancel()
+            onScrollVisibilityChange(true)
+        }
     }
 
     // 点击当前 Dock 标签：滚动到顶部
@@ -281,15 +321,14 @@ fun BoardScreen(
                             scaleY = 1f - 0.15f * (1f - othersAlpha)
                         }
                 ) {
-                    // 排序（46dp 圆形图标）
+                    // 排序（46dp 圆形图标）：面板不在这里渲染，见根部 LiqSortMenuOverlay
                     Box(modifier = Modifier.size(SortButtonSize)) {
-                        LiqCreateSortMenu(
+                        LiqSortButton(
                             open = sortMenuOpen,
                             onToggle = { sortMenuOpen = !sortMenuOpen },
-                            options = sortOptions(prefs.sortMode),
-                            onSelect = { id ->
-                                sortMenuOpen = false
-                                viewModel.setSortMode(SortMode.valueOf(id))
+                            onAnchor = { left, top, width, height ->
+                                sortAnchorX = left + width
+                                sortAnchorY = top + height
                             }
                         )
                     }
@@ -505,6 +544,21 @@ fun BoardScreen(
                 onDismiss = { mainViewModel.dismissToast() }
             )
         }
+
+        // 排序菜单：在根部全屏层渲染，绝对定位贴在排序按钮下方，
+        // 避免被固定 56dp 的顶部栏约束夹扁
+        LiqSortMenuOverlay(
+            anchorX = sortAnchorX,
+            anchorY = sortAnchorY,
+            open = sortMenuOpen,
+            options = sortOptions(prefs.sortMode),
+            onSelect = { id ->
+                // 先关闭菜单，再写 DataStore（ViewModel 会回推并触发重新排序）
+                sortMenuOpen = false
+                runCatching { viewModel.setSortMode(SortMode.valueOf(id)) }
+            },
+            onDismiss = { sortMenuOpen = false }
+        )
     }
 
     // 提示 3 秒后自动消失
