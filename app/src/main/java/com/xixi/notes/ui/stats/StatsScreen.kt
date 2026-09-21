@@ -1,8 +1,8 @@
 package com.xixi.notes.ui.stats
 
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.animateIntAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -17,9 +17,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -27,9 +26,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -41,10 +42,25 @@ import com.xixi.notes.di.LocalAppContainer
 import com.xixi.notes.ui.board.Quadrant
 import com.xixi.notes.ui.components.clickableNoRipple
 import com.xixi.notes.ui.components.colorOf
+import com.xixi.notes.ui.theme.Spacing
+import com.xixi.notes.ui.theme.XixiElevation
+import com.xixi.notes.ui.theme.XixiLargeCardShape
+import com.xixi.notes.ui.theme.XixiItemShape
+import com.xixi.notes.ui.theme.XixiTextStyles
 import com.xixi.notes.ui.theme.XixiTheme
 import com.xixi.notes.ui.util.GentleEasing
 
-/** 统计页：各象限数量（四卡片，不可点击）/ 本周完成 / 总完成 / 逾期数 */
+/**
+ * 统计页。
+ *
+ * 布局（自上而下）：
+ * 1. 标题栏
+ * 2. **顶部大卡片**：任务总数（核心数字，最大最粗）
+ * 3. **2 × 2 网格**：四象限数量，各自带象限色，可点击跳转主屏筛选
+ * 4. 底部卡片：本周完成 / 总完成（跳归档页）、逾期（跳主屏逾期筛选）
+ *
+ * 所有卡片的点击逻辑与数据来源保持不变（统计计算在 StatsViewModel，本文件只做展示）。
+ */
 @Composable
 fun StatsScreen(
     onQuadrantClick: (Quadrant) -> Unit,
@@ -67,16 +83,16 @@ fun StatsScreen(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(56.dp)
-                .padding(horizontal = 16.dp),
+                .height(60.dp)
+                .padding(horizontal = Spacing.xl),
             contentAlignment = Alignment.CenterStart
         ) {
             Text(
                 text = stringResource(R.string.stats_title),
                 color = XixiTheme.colors.textPrimary,
-                fontSize = 20.sp,
-                letterSpacing = 0.5.sp,
-                fontWeight = FontWeight.SemiBold
+                fontSize = 26.sp,
+                letterSpacing = 0.3.sp,
+                fontWeight = FontWeight.Bold
             )
         }
 
@@ -86,16 +102,19 @@ fun StatsScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                    .padding(horizontal = Spacing.screenH),
+                verticalArrangement = Arrangement.spacedBy(Spacing.md)
             ) {
-                // 四象限卡片（2 x 2，可点击跳转筛选）
-                Quadrant.ordered.chunked(2).forEach { row ->
+                // ------------------------------------------------ 顶部大卡片：核心数字
+                TotalTasksCard(total = state.totalTasks)
+
+                // ------------------------------------------------------ 2 × 2 四象限网格
+                Quadrant.ordered.chunked(2).forEach { pair ->
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        horizontalArrangement = Arrangement.spacedBy(Spacing.md)
                     ) {
-                        row.forEach { quadrant ->
+                        pair.forEach { quadrant ->
                             QuadrantCountCard(
                                 quadrant = quadrant,
                                 count = state.counts[quadrant] ?: 0,
@@ -106,38 +125,69 @@ fun StatsScreen(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(4.dp))
-
-                // 本周完成 / 总完成 -> 归档页
+                // ------------------------------------------- 本周完成 / 总完成 / 逾期
                 StatLineCard(
                     label = stringResource(R.string.stats_week_completed),
                     value = state.weekCompleted,
-                    accent = MaterialTheme.colorScheme.primary,
+                    accent = XixiTheme.colors.accent,
                     onClick = onCompletedClick
                 )
                 StatLineCard(
                     label = stringResource(R.string.stats_total_completed),
                     value = state.totalCompleted,
-                    accent = Color(0xFF6EE7B7),
+                    accent = XixiTheme.colors.accent,
                     onClick = onCompletedClick
                 )
-                // 逾期 -> 主屏筛选逾期
+                // 逾期用危险语义色
                 StatLineCard(
                     label = stringResource(R.string.stats_overdue),
                     value = state.overdue,
-                    accent = Color(0xFFEF4444),
+                    accent = XixiTheme.colors.danger,
                     onClick = onOverdueClick
-                )
-
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = stringResource(R.string.stats_tap_hint),
-                    color = XixiTheme.colors.textSecondary,
-                    fontSize = 12.sp,
-                    letterSpacing = 0.5.sp
                 )
             }
         }
+    }
+}
+
+/**
+ * 顶部大卡片：任务总数（核心数字）。
+ *
+ * 不可点击（没有对应的目标页面），因此不加点击反馈，只作为视觉焦点存在。
+ */
+@Composable
+private fun TotalTasksCard(
+    total: Int,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .shadow(XixiElevation.cardStrong, XixiLargeCardShape)
+            .clip(XixiLargeCardShape)
+            .background(XixiTheme.colors.card)
+            .padding(Spacing.largeCardPadding)
+    ) {
+        Text(
+            text = stringResource(R.string.stats_total_tasks),
+            color = XixiTheme.colors.textSecondary,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Medium,
+            letterSpacing = 0.3.sp
+        )
+        Spacer(modifier = Modifier.height(Spacing.md))
+        RollingNumber(
+            value = total,
+            color = XixiTheme.colors.textPrimary,
+            style = XixiTextStyles.statNumber
+        )
+        Spacer(modifier = Modifier.height(Spacing.sm))
+        Text(
+            text = stringResource(R.string.stats_tap_hint),
+            color = XixiTheme.colors.textTertiary,
+            fontSize = 12.sp,
+            letterSpacing = 0.3.sp
+        )
     }
 }
 
@@ -167,7 +217,7 @@ private fun ClickScaleBox(
     }
 }
 
-/** 单个象限卡片：数量 + 名称，点击按象限筛选主屏 */
+/** 单个象限卡片：象限色圆点 + 名称 + 数量，点击按象限筛选主屏 */
 @Composable
 private fun QuadrantCountCard(
     quadrant: Quadrant,
@@ -180,9 +230,10 @@ private fun QuadrantCountCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp))
+                .shadow(XixiElevation.card, XixiItemShape)
+                .clip(XixiItemShape)
                 .background(XixiTheme.colors.card)
-                .padding(16.dp)
+                .padding(Spacing.lg)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
@@ -191,20 +242,20 @@ private fun QuadrantCountCard(
                         .clip(CircleShape)
                         .background(color)
                 )
-                Spacer(modifier = Modifier.size(6.dp))
+                Spacer(modifier = Modifier.width(Spacing.sm))
                 Text(
                     text = stringResource(quadrant.titleRes),
                     color = XixiTheme.colors.textSecondary,
                     fontSize = 12.sp,
-                    letterSpacing = 0.5.sp,
+                    letterSpacing = 0.3.sp,
                     maxLines = 2
                 )
             }
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(Spacing.md))
             RollingNumber(
                 value = count,
                 color = color,
-                fontSize = 28
+                style = XixiTextStyles.statNumberSmall
             )
         }
     }
@@ -223,29 +274,35 @@ private fun StatLineCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp))
+                .shadow(XixiElevation.card, XixiItemShape)
+                .clip(XixiItemShape)
                 .background(XixiTheme.colors.card)
-                .padding(horizontal = 16.dp, vertical = 16.dp),
+                .padding(horizontal = Spacing.lg, vertical = Spacing.lg),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
                 text = label,
                 color = XixiTheme.colors.textPrimary,
-                fontSize = 14.sp,
-                letterSpacing = 0.5.sp
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Medium,
+                letterSpacing = 0.3.sp
             )
             Spacer(modifier = Modifier.weight(1f))
-            RollingNumber(value = value, color = accent, fontSize = 22)
+            RollingNumber(
+                value = value,
+                color = accent,
+                style = XixiTextStyles.statNumberSmall.copy(fontSize = 24.sp, lineHeight = 28.sp)
+            )
         }
     }
 }
 
-/** 数字滚动 400ms */
+/** 数字滚动 400ms（样式由调用方通过 [style] 指定，保证统计数字层级统一） */
 @Composable
 private fun RollingNumber(
     value: Int,
     color: Color,
-    fontSize: Int
+    style: TextStyle
 ) {
     val animated by animateIntAsState(
         targetValue = value,
@@ -255,9 +312,7 @@ private fun RollingNumber(
     Text(
         text = animated.toString(),
         color = color,
-        fontSize = fontSize.sp,
-        letterSpacing = 0.5.sp,
-        fontWeight = FontWeight.SemiBold
+        style = style
     )
 }
 
@@ -267,7 +322,7 @@ private fun EmptyStats() {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .padding(32.dp),
+            .padding(Spacing.huge),
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -275,15 +330,16 @@ private fun EmptyStats() {
                 text = stringResource(R.string.stats_empty),
                 color = XixiTheme.colors.textPrimary,
                 fontSize = 16.sp,
-                letterSpacing = 0.5.sp,
+                fontWeight = FontWeight.SemiBold,
+                letterSpacing = 0.3.sp,
                 textAlign = TextAlign.Center
             )
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(Spacing.sm))
             Text(
                 text = stringResource(R.string.stats_empty_hint),
                 color = XixiTheme.colors.textSecondary,
                 fontSize = 13.sp,
-                letterSpacing = 0.5.sp,
+                letterSpacing = 0.3.sp,
                 textAlign = TextAlign.Center
             )
         }

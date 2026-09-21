@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BrokenImage
 import androidx.compose.material.icons.filled.Close
@@ -50,6 +49,13 @@ import coil.compose.SubcomposeAsyncImageContent
 import com.xixi.notes.R
 import com.xixi.notes.di.LocalAppContainer
 import com.xixi.notes.ui.components.clickableNoRipple
+import com.xixi.notes.ui.theme.Spacing
+import com.xixi.notes.ui.theme.ViewerAccent
+import com.xixi.notes.ui.theme.ViewerBackground
+import com.xixi.notes.ui.theme.ViewerSurface
+import com.xixi.notes.ui.theme.ViewerTextPrimary
+import com.xixi.notes.ui.theme.ViewerTextSecondary
+import com.xixi.notes.ui.theme.XixiTheme
 import com.xixi.notes.ui.util.imageModel
 import kotlin.math.abs
 
@@ -103,7 +109,7 @@ fun ImageViewerScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFF0A0A0A))
+            .background(ViewerBackground)
     ) {
         if (paths.isEmpty()) {
             // 路径列表为空：显示「图片不存在」+ 关闭按钮
@@ -114,29 +120,29 @@ fun ImageViewerScreen(
                 Icon(
                     imageVector = Icons.Default.BrokenImage,
                     contentDescription = null,
-                    tint = Color(0xFF71717A),
+                    tint = ViewerTextSecondary,
                     modifier = Modifier.size(40.dp)
                 )
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(Spacing.md))
                 Text(
                     text = stringResource(R.string.viewer_missing_list),
-                    color = Color(0xFFFAFAFA),
+                    color = ViewerTextPrimary,
                     fontSize = 14.sp,
-                    letterSpacing = 0.5.sp
+                    letterSpacing = 0.3.sp
                 )
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(Spacing.lg))
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(Color(0xFF141414))
+                        .clip(XixiTheme.shapes.small)
+                        .background(ViewerSurface)
                         .clickableNoRipple(onClick = onClose)
-                        .padding(horizontal = 18.dp, vertical = 10.dp)
+                        .padding(horizontal = Spacing.xl, vertical = Spacing.sm)
                 ) {
                     Text(
                         text = stringResource(R.string.action_close),
-                        color = Color(0xFFFAFAFA),
+                        color = ViewerTextPrimary,
                         fontSize = 13.sp,
-                        letterSpacing = 0.5.sp
+                        letterSpacing = 0.3.sp
                     )
                 }
             }
@@ -167,9 +173,9 @@ fun ImageViewerScreen(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .padding(bottom = 40.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(Color.Black.copy(alpha = 0.45f))
-                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                        .clip(XixiTheme.shapes.small)
+                        .background(XixiTheme.colors.sunken.copy(alpha = 0.45f))
+                        .padding(horizontal = Spacing.md, vertical = 6.dp)
                 ) {
                     Text(
                         text = stringResource(
@@ -177,9 +183,9 @@ fun ImageViewerScreen(
                             pagerState.currentPage + 1,
                             paths.size
                         ),
-                        color = Color(0xFFFAFAFA),
+                        color = ViewerTextPrimary,
                         fontSize = 12.sp,
-                        letterSpacing = 0.5.sp
+                        letterSpacing = 0.3.sp
                     )
                 }
             }
@@ -196,17 +202,17 @@ fun ImageViewerScreen(
         ) {
             Box(
                 modifier = Modifier
-                    .padding(12.dp)
+                    .padding(Spacing.md)
                     .size(40.dp)
                     .clip(CircleShape)
-                    .background(Color.Black.copy(alpha = 0.35f))
+                    .background(XixiTheme.colors.sunken.copy(alpha = 0.35f))
                     .clickableNoRipple(onClick = onClose),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Default.Close,
                     contentDescription = stringResource(R.string.action_close),
-                    tint = Color(0xFFFAFAFA),
+                    tint = ViewerTextPrimary,
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -289,7 +295,7 @@ private fun ZoomablePage(
                     CircularProgressIndicator(
                         modifier = Modifier.size(28.dp),
                         strokeWidth = 2.dp,
-                        color = Color(0xFF6EE7B7)
+                        color = ViewerAccent
                     )
                 }
             },
@@ -304,15 +310,15 @@ private fun ZoomablePage(
                     Icon(
                         imageVector = Icons.Default.BrokenImage,
                         contentDescription = null,
-                        tint = Color(0xFF71717A),
+                        tint = ViewerTextSecondary,
                         modifier = Modifier.size(40.dp)
                     )
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(Spacing.md))
                     Text(
                         text = stringResource(R.string.viewer_missing_image),
-                        color = Color(0xFF71717A),
+                        color = ViewerTextSecondary,
                         fontSize = 13.sp,
-                        letterSpacing = 0.5.sp
+                        letterSpacing = 0.3.sp
                     )
                 }
             },

@@ -37,14 +37,12 @@ import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -60,10 +58,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -90,7 +90,10 @@ import com.xixi.notes.ui.main.BoardToast
 import com.xixi.notes.ui.main.MainViewModel
 import com.xixi.notes.ui.main.OVERDUE_FILTER
 import com.xixi.notes.ui.main.UndoSlot
+import com.xixi.notes.ui.theme.Spacing
+import com.xixi.notes.ui.theme.XixiElevation
 import com.xixi.notes.ui.theme.XixiTheme
+import com.xixi.notes.ui.theme.XixiThumbnailShape
 import com.xixi.notes.ui.util.GentleEasing
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -289,8 +292,8 @@ fun BoardScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(56.dp)
-                    .padding(start = 16.dp, end = 8.dp),
+                    .height(60.dp)
+                    .padding(start = Spacing.lg, end = Spacing.sm),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 SeekSearchBar(
@@ -313,7 +316,7 @@ fun BoardScreen(
 
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
                     modifier = Modifier
                         .alpha(othersAlpha)
                         .graphicsLayer {
@@ -595,7 +598,7 @@ private fun filterLabel(filter: BoardFilter): String = when (filter) {
     BoardFilter.None -> ""
 }
 
-/** 当前筛选条件（可一键清除） */
+/** 当前筛选条件（可一键清除）：圆角小卡片 + 柔和阴影 */
 @Composable
 private fun FilterChipRow(
     label: String,
@@ -604,26 +607,28 @@ private fun FilterChipRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
+            .padding(horizontal = Spacing.md, vertical = Spacing.xs),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Row(
             modifier = Modifier
-                .clip(RoundedCornerShape(12.dp))
+                .shadow(XixiElevation.card, XixiThumbnailShape)
+                .clip(XixiThumbnailShape)
                 .background(XixiTheme.colors.card)
-                .padding(start = 12.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
+                .padding(start = Spacing.md, end = Spacing.xs, top = 6.dp, bottom = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
                 text = label,
                 color = XixiTheme.colors.textPrimary,
                 fontSize = 12.sp,
-                letterSpacing = 0.5.sp
+                fontWeight = FontWeight.Medium,
+                letterSpacing = 0.3.sp
             )
-            Spacer(modifier = Modifier.width(6.dp))
+            Spacer(modifier = Modifier.width(Spacing.xs))
             Box(
                 modifier = Modifier
-                    .size(20.dp)
+                    .size(22.dp)
                     .clip(CircleShape)
                     .clickableNoRipple(onClick = onClear),
                 contentAlignment = Alignment.Center
@@ -639,7 +644,7 @@ private fun FilterChipRow(
     }
 }
 
-/** 行内撤销条 */
+/** 行内撤销条：圆角小卡片；「撤销」使用统一强调色 */
 @Composable
 private fun UndoInline(
     message: String,
@@ -648,37 +653,40 @@ private fun UndoInline(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 4.dp)
-            .clip(RoundedCornerShape(12.dp))
+            .padding(horizontal = Spacing.md, vertical = Spacing.xs)
+            .shadow(XixiElevation.card, XixiThumbnailShape)
+            .clip(XixiThumbnailShape)
             .background(XixiTheme.colors.card)
-            .padding(horizontal = 12.dp, vertical = 10.dp),
+            .padding(horizontal = Spacing.md, vertical = Spacing.sm),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
             text = message,
             color = XixiTheme.colors.textSecondary,
             fontSize = 13.sp,
-            letterSpacing = 0.5.sp,
+            letterSpacing = 0.3.sp,
             maxLines = 1,
             modifier = Modifier.weight(1f)
         )
         Box(
             modifier = Modifier
-                .clip(RoundedCornerShape(10.dp))
+                .clip(XixiTheme.shapes.small)
                 .clickableNoRipple(onClick = onUndo)
-                .padding(horizontal = 12.dp, vertical = 6.dp)
+                .padding(horizontal = Spacing.md, vertical = 6.dp)
         ) {
             Text(
                 text = stringResource(R.string.action_undo),
-                color = MaterialTheme.colorScheme.primary,
+                // 操作类文字统一使用强调色
+                color = XixiTheme.colors.accent,
                 fontSize = 13.sp,
-                letterSpacing = 0.5.sp
+                fontWeight = FontWeight.SemiBold,
+                letterSpacing = 0.3.sp
             )
         }
     }
 }
 
-/** 顶部提示条 */
+/** 顶部提示条：圆角小卡片 + 柔和阴影 */
 @Composable
 private fun ToastInline(
     message: String,
@@ -686,18 +694,19 @@ private fun ToastInline(
 ) {
     Row(
         modifier = Modifier
-            .padding(horizontal = 16.dp)
-            .clip(RoundedCornerShape(14.dp))
+            .padding(horizontal = Spacing.lg)
+            .shadow(XixiElevation.cardStrong, XixiTheme.shapes.item)
+            .clip(XixiTheme.shapes.item)
             .background(XixiTheme.colors.card)
             .clickableNoRipple(onClick = onDismiss)
-            .padding(horizontal = 14.dp, vertical = 12.dp),
+            .padding(horizontal = Spacing.lg, vertical = Spacing.md),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
             text = message,
             color = XixiTheme.colors.textPrimary,
             fontSize = 13.sp,
-            letterSpacing = 0.5.sp
+            letterSpacing = 0.3.sp
         )
     }
 }
@@ -755,7 +764,8 @@ private fun EmptyBoard(
                 Icon(
                     imageVector = Icons.Default.CheckCircle,
                     contentDescription = null,
-                    tint = XixiTheme.quadrant.importantUrgent.copy(alpha = 0.65f),
+                    // 空状态图标使用统一强调色
+                    tint = XixiTheme.colors.accent.copy(alpha = 0.75f),
                     modifier = Modifier
                         .size(56.dp)
                         .graphicsLayer {
@@ -763,7 +773,7 @@ private fun EmptyBoard(
                             scaleY = breath
                         }
                 )
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(Spacing.lg))
             }
             Text(
                 text = stringResource(
@@ -771,23 +781,24 @@ private fun EmptyBoard(
                 ),
                 color = XixiTheme.colors.textSecondary,
                 fontSize = 15.sp,
-                letterSpacing = 0.5.sp,
+                letterSpacing = 0.3.sp,
                 textAlign = TextAlign.Center
             )
             if (searching) {
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(Spacing.md))
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(12.dp))
+                        .shadow(XixiElevation.card, XixiTheme.shapes.small)
+                        .clip(XixiTheme.shapes.small)
                         .background(XixiTheme.colors.card)
                         .clickableNoRipple(onClick = onClear)
-                        .padding(horizontal = 16.dp, vertical = 10.dp)
+                        .padding(horizontal = Spacing.lg, vertical = Spacing.sm)
                 ) {
                     Text(
                         text = stringResource(R.string.action_clear_search),
                         color = XixiTheme.colors.textPrimary,
                         fontSize = 13.sp,
-                        letterSpacing = 0.5.sp
+                        letterSpacing = 0.3.sp
                     )
                 }
             }

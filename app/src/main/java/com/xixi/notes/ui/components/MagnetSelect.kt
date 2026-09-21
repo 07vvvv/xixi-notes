@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.xixi.notes.ui.theme.ThemeMode
+import com.xixi.notes.ui.theme.XixiTheme
 import com.xixi.notes.ui.util.GentleEasing
 import kotlin.math.abs
 import kotlin.math.exp
@@ -29,10 +30,13 @@ private val ORB = 36.dp
 /** 相邻球心间距 */
 private val PITCH = 44.dp
 
-/** 三颗球固定颜色：跟随系统 / 深色 / 浅色 */
-private val ColorFollowSystem = Color(0xFFA1A1AA)
-private val ColorDark = Color(0xFFA78BFA)
-private val ColorLight = Color(0xFF6EE7B7)
+/** 三颗球固定颜色：跟随系统 / 深色 / 浅色（取自主题强调色板三档） */
+private val ColorFollowSystem: Color
+    @Composable get() = XixiTheme.accent.followSystem
+private val ColorDark: Color
+    @Composable get() = XixiTheme.accent.dark
+private val ColorLight: Color
+    @Composable get() = XixiTheme.accent.light
 
 /** 每步延迟 */
 private const val STEP_DELAY_MS = 22

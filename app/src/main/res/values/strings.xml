@@ -113,6 +113,8 @@
 
     <!-- 统计页 -->
     <string name="stats_title">统计</string>
+    <!-- 顶部大卡片：任务总数（核心数字） -->
+    <string name="stats_total_tasks">任务总数</string>
     <string name="stats_week_completed">本周完成</string>
     <string name="stats_total_completed">总完成</string>
     <string name="stats_overdue">逾期</string>

@@ -32,12 +32,10 @@ import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Close
@@ -46,11 +44,9 @@ import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
-import androidx.compose.material3.DatePickerDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
@@ -68,6 +64,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
@@ -76,6 +73,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -92,6 +90,8 @@ import com.xixi.notes.data.preferences.AppPrefs
 import com.xixi.notes.di.LocalAppContainer
 import com.xixi.notes.ui.components.InlineConfirm
 import com.xixi.notes.ui.components.clickableNoRipple
+import com.xixi.notes.ui.theme.Spacing
+import com.xixi.notes.ui.theme.XixiElevation
 import com.xixi.notes.ui.theme.XixiTheme
 import com.xixi.notes.ui.util.GentleEasing
 import com.xixi.notes.ui.util.imageModel
@@ -101,12 +101,15 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.ZoneId
-import java.util.Calendar
 
 /**
  * 任务编辑页。
  *
+ * 布局约定：
  * - 顶部栏：左「取消」右「保存」，标题非空且有变化时启用保存
+ * - 内容按逻辑分组的独立卡片：① 标题 + 描述 ② 标签与状态 ③ 时间 ④ 图片
+ * - 图片区域：横向滚动缩略图 + 末尾虚线「+ 添加」
+ * - **底部固定删除按钮**（不随表单滚动），新建任务时显示为「取消」
  * - 日期时间选择器默认当前时间（精确到分钟），未保存不写入数据库
  * - 取消与返回手势行为一致：有修改弹 inline confirm；新建空内容直接退出
  */
@@ -241,13 +244,14 @@ fun DetailScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(56.dp)
-                    .padding(horizontal = 8.dp),
+                    .height(60.dp)
+                    .padding(horizontal = Spacing.sm),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                // 左：取消
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(12.dp))
+                        .clip(XixiTheme.shapes.small)
                         .clickableNoRipple {
                             if (state.hasChanges) {
                                 viewModel.showDiscardConfirm()
@@ -255,13 +259,13 @@ fun DetailScreen(
                                 viewModel.cancel(onDone = onClose)
                             }
                         }
-                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                        .padding(horizontal = Spacing.md, vertical = Spacing.sm)
                 ) {
                     Text(
                         text = stringResource(R.string.action_cancel),
                         color = XixiTheme.colors.textPrimary,
-                        fontSize = 14.sp,
-                        letterSpacing = 0.5.sp
+                        fontSize = 15.sp,
+                        letterSpacing = 0.3.sp
                     )
                 }
 
@@ -273,12 +277,13 @@ fun DetailScreen(
                     ),
                     color = XixiTheme.colors.textPrimary,
                     fontSize = 16.sp,
-                    letterSpacing = 0.5.sp,
+                    letterSpacing = 0.3.sp,
                     fontWeight = FontWeight.SemiBold
                 )
 
                 Spacer(modifier = Modifier.weight(1f))
 
+                // 右：保存（不可保存时降低不透明度）
                 val saveAlpha by animateFloatAsState(
                     targetValue = if (state.canSave) 1f else 0.35f,
                     animationSpec = tween(durationMillis = 220, easing = GentleEasing),
@@ -286,17 +291,17 @@ fun DetailScreen(
                 )
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(12.dp))
+                        .clip(XixiTheme.shapes.small)
                         .clickableNoRipple(enabled = state.canSave) {
                             viewModel.save(onDone = { onClose() })
                         }
-                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                        .padding(horizontal = Spacing.md, vertical = Spacing.sm)
                 ) {
                     Text(
                         text = stringResource(R.string.action_save),
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = saveAlpha),
-                        fontSize = 14.sp,
-                        letterSpacing = 0.5.sp,
+                        color = XixiTheme.colors.accent.copy(alpha = saveAlpha),
+                        fontSize = 15.sp,
+                        letterSpacing = 0.3.sp,
                         fontWeight = FontWeight.SemiBold
                     )
                 }
@@ -305,21 +310,25 @@ fun DetailScreen(
             // ---------------------------------------------------------- 内容
             Column(
                 modifier = Modifier
-                    .fillMaxSize()
+                    .weight(1f)
+                    .fillMaxWidth()
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 16.dp)
+                    .padding(horizontal = Spacing.screenH)
             ) {
-                // 标题
+                // ============================================ 分组 ①：标题 + 描述
                 FieldCard {
+                    // 标题
+                    FieldLabel(stringResource(R.string.editor_field_title))
+                    Spacer(modifier = Modifier.height(Spacing.sm))
                     BasicTextField(
                         value = state.title,
                         onValueChange = viewModel::setTitle,
-                        textStyle = androidx.compose.ui.text.TextStyle(
+                        textStyle = TextStyle(
                             color = XixiTheme.colors.textPrimary,
                             fontSize = 17.sp,
-                            letterSpacing = 0.5.sp
+                            letterSpacing = 0.3.sp
                         ),
-                        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                        cursorBrush = SolidColor(XixiTheme.colors.accent),
                         keyboardOptions = KeyboardOptions(
                             capitalization = KeyboardCapitalization.Sentences,
                             imeAction = ImeAction.Next
@@ -329,31 +338,37 @@ fun DetailScreen(
                             if (state.title.isEmpty()) {
                                 Text(
                                     text = stringResource(R.string.editor_field_title_placeholder),
-                                    color = XixiTheme.colors.textSecondary,
+                                    color = XixiTheme.colors.textTertiary,
                                     fontSize = 17.sp,
-                                    letterSpacing = 0.5.sp
+                                    letterSpacing = 0.3.sp
                                 )
                             }
                             inner()
                         },
                         modifier = Modifier.fillMaxWidth()
                     )
-                }
 
-                Spacer(modifier = Modifier.height(10.dp))
+                    // 组内分隔：描述是同一「内容」组的第二行
+                    Spacer(modifier = Modifier.height(Spacing.md))
+                    HorizontalDivider(
+                        thickness = 1.dp,
+                        color = XixiTheme.colors.outline
+                    )
+                    Spacer(modifier = Modifier.height(Spacing.md))
 
-                // 描述
-                FieldCard {
+                    // 描述
+                    FieldLabel(stringResource(R.string.editor_field_description))
+                    Spacer(modifier = Modifier.height(Spacing.sm))
                     BasicTextField(
                         value = state.description,
                         onValueChange = viewModel::setDescription,
-                        textStyle = androidx.compose.ui.text.TextStyle(
+                        textStyle = TextStyle(
                             color = XixiTheme.colors.textPrimary,
                             fontSize = 14.sp,
                             lineHeight = 22.sp,
-                            letterSpacing = 0.5.sp
+                            letterSpacing = 0.3.sp
                         ),
-                        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                        cursorBrush = SolidColor(XixiTheme.colors.accent),
                         keyboardOptions = KeyboardOptions(
                             capitalization = KeyboardCapitalization.Sentences,
                             keyboardType = KeyboardType.Text,
@@ -365,9 +380,9 @@ fun DetailScreen(
                                     text = stringResource(
                                         R.string.editor_field_description_placeholder
                                     ),
-                                    color = XixiTheme.colors.textSecondary,
+                                    color = XixiTheme.colors.textTertiary,
                                     fontSize = 14.sp,
-                                    letterSpacing = 0.5.sp
+                                    letterSpacing = 0.3.sp
                                 )
                             }
                             inner()
@@ -378,12 +393,14 @@ fun DetailScreen(
                     )
                 }
 
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(Spacing.md))
 
-                // 标签 + 状态
+                // ============================================== 分组 ②：标签与状态
                 FieldCard {
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FieldLabel(stringResource(R.string.settings_section_display))
+                    Spacer(modifier = Modifier.height(Spacing.md))
+                    Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                             TagChip(
                                 label = stringResource(R.string.editor_tag_important),
                                 selected = state.isImportant,
@@ -397,195 +414,165 @@ fun DetailScreen(
                                 onClick = viewModel::toggleUrgent
                             )
                         }
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                             TagChip(
                                 label = stringResource(R.string.editor_assigned),
                                 selected = state.isAssignedToMe,
-                                color = MaterialTheme.colorScheme.primary,
+                                color = XixiTheme.colors.accent,
                                 onClick = viewModel::toggleAssigned
                             )
                             TagChip(
+                                // 「已完成」保留专用完成绿，不并入强调色
                                 label = stringResource(R.string.editor_checklist),
                                 selected = state.isCheckedOff,
-                                color = Color(0xFF22C55E),
+                                color = XixiTheme.colors.check,
                                 onClick = viewModel::toggleCheckedOff
                             )
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(Spacing.md))
 
-                // 截止日期
+                // ==================================================== 分组 ③：时间
                 FieldCard {
-                    Column {
-                        PickerRow(
-                            icon = Icons.Default.CalendarMonth,
-                            label = stringResource(R.string.editor_field_due_date),
-                            value = state.dueDate?.let {
-                                com.xixi.notes.ui.util.formatDateTime(it)
-                            } ?: stringResource(R.string.editor_not_set),
-                            onClear = if (state.dueDate != null) {
-                                { viewModel.setDueDate(null) }
-                            } else {
-                                null
-                            },
-                            onClick = {
-                                pendingDateMillis = null
-                                showDatePicker = true
-                            }
-                        )
-                        Spacer(modifier = Modifier.height(6.dp))
-                        // 提醒时间：点击时一并处理通知与精确闹钟权限
-                        PickerRow(
-                            icon = Icons.Default.Notifications,
-                            label = stringResource(R.string.editor_field_reminder),
-                            value = state.reminderTime?.let {
-                                com.xixi.notes.ui.util.formatDateTime(it)
-                            } ?: stringResource(R.string.editor_not_set),
-                            onClear = if (state.reminderTime != null) {
-                                { viewModel.setReminderTime(null) }
-                            } else {
-                                null
-                            },
-                            onClick = {
-                                // 点击提醒时间选择器时一并处理两个权限
-                                reminderPermissions.request()
-                                pendingDateMillis = null
-                                timePickerTarget = TimeTarget.REMINDER
-                            }
-                        )
-                    }
+                    FieldLabel(stringResource(R.string.settings_section_notification))
+                    Spacer(modifier = Modifier.height(Spacing.xs))
+                    PickerRow(
+                        icon = Icons.Default.CalendarMonth,
+                        label = stringResource(R.string.editor_field_due_date),
+                        value = state.dueDate?.let {
+                            com.xixi.notes.ui.util.formatDateTime(it)
+                        } ?: stringResource(R.string.editor_not_set),
+                        onClear = if (state.dueDate != null) {
+                            { viewModel.setDueDate(null) }
+                        } else {
+                            null
+                        },
+                        onClick = {
+                            pendingDateMillis = null
+                            showDatePicker = true
+                        }
+                    )
+                    HorizontalDivider(
+                        thickness = 1.dp,
+                        color = XixiTheme.colors.outline
+                    )
+                    // 提醒时间：点击时一并处理通知与精确闹钟权限
+                    PickerRow(
+                        icon = Icons.Default.Notifications,
+                        label = stringResource(R.string.editor_field_reminder),
+                        value = state.reminderTime?.let {
+                            com.xixi.notes.ui.util.formatDateTime(it)
+                        } ?: stringResource(R.string.editor_not_set),
+                        onClear = if (state.reminderTime != null) {
+                            { viewModel.setReminderTime(null) }
+                        } else {
+                            null
+                        },
+                        onClick = {
+                            // 点击提醒时间选择器时一并处理两个权限
+                            reminderPermissions.request()
+                            pendingDateMillis = null
+                            timePickerTarget = TimeTarget.REMINDER
+                        }
+                    )
                 }
 
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(Spacing.md))
 
-                // 图片
+                // ==================================================== 分组 ④：图片
                 FieldCard {
-                    Column {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = stringResource(R.string.editor_field_images),
-                                color = XixiTheme.colors.textPrimary,
-                                fontSize = 14.sp,
-                                letterSpacing = 0.5.sp
-                            )
-                            Spacer(modifier = Modifier.weight(1f))
-                            Text(
-                                text = stringResource(R.string.editor_image_limit),
-                                color = XixiTheme.colors.textSecondary,
-                                fontSize = 12.sp,
-                                letterSpacing = 0.5.sp
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(10.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        FieldLabel(
+                            stringResource(R.string.editor_field_images),
+                            modifier = Modifier.weight(1f)
+                        )
+                        Text(
+                            text = stringResource(R.string.editor_image_limit),
+                            color = XixiTheme.colors.textTertiary,
+                            fontSize = 12.sp,
+                            letterSpacing = 0.3.sp
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(Spacing.md))
 
-                        Box {
-                            ImageStrip(
-                                state = state,
-                                imageManager = container.imageManager,
-                                onRemove = viewModel::removeImage,
-                                onAdd = { viewModel.showImageMenu() },
-                                onOpenViewer = { index ->
-                                    if (state.images.isNotEmpty()) {
-                                        val initial = container.imageViewerBridge.open(
-                                            state.images.map { it.path },
-                                            index
-                                        )
-                                        onOpenImageViewer(initial)
-                                    }
-                                }
-                            )
-
-                            // 压缩中只禁用图片区域
-                            if (state.compressing) {
-                                Box(
-                                    modifier = Modifier
-                                        .matchParentSize()
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .background(XixiTheme.colors.background.copy(alpha = 0.72f)),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        CircularProgressIndicator(
-                                            modifier = Modifier.size(22.dp),
-                                            strokeWidth = 2.dp,
-                                            color = MaterialTheme.colorScheme.primary
-                                        )
-                                        Spacer(modifier = Modifier.height(8.dp))
-                                        Text(
-                                            text = stringResource(
-                                                R.string.editor_image_processing,
-                                                state.compressionCurrent + 1,
-                                                state.compressionTotal
-                                            ),
-                                            color = XixiTheme.colors.textPrimary,
-                                            fontSize = 12.sp,
-                                            letterSpacing = 0.5.sp
-                                        )
-                                    }
+                    Box {
+                        ImageStrip(
+                            state = state,
+                            imageManager = container.imageManager,
+                            onRemove = viewModel::removeImage,
+                            onAdd = { viewModel.showImageMenu() },
+                            onOpenViewer = { index ->
+                                if (state.images.isNotEmpty()) {
+                                    val initial = container.imageViewerBridge.open(
+                                        state.images.map { it.path },
+                                        index
+                                    )
+                                    onOpenImageViewer(initial)
                                 }
                             }
-                        }
+                        )
 
-                        // 添加图片 inline 菜单
-                        AnimatedVisibility(
-                            visible = state.imageMenuVisible,
-                            enter = fadeIn(tween(180, easing = GentleEasing)),
-                            exit = fadeOut(tween(140, easing = GentleEasing))
-                        ) {
-                            Column(modifier = Modifier.padding(top = 10.dp)) {
-                                MenuRow(
-                                    icon = Icons.Default.PhotoLibrary,
-                                    label = stringResource(R.string.editor_image_from_gallery),
-                                    onClick = {
-                                        viewModel.hideImageMenu()
-                                        launchGallery()
-                                    }
-                                )
-                                // 无相机或权限被拒时隐藏「拍照」
-                                if (cameraAvailability.canTakePhoto) {
-                                    MenuRow(
-                                        icon = Icons.Default.AddPhotoAlternate,
-                                        label = stringResource(R.string.editor_image_take_photo),
-                                        onClick = {
-                                            viewModel.hideImageMenu()
-                                            takePhoto()
-                                        }
+                        // 压缩中只禁用图片区域
+                        if (state.compressing) {
+                            Box(
+                                modifier = Modifier
+                                    .matchParentSize()
+                                    .clip(XixiTheme.shapes.thumbnail)
+                                    .background(XixiTheme.colors.background.copy(alpha = 0.72f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(22.dp),
+                                        strokeWidth = 2.dp,
+                                        color = XixiTheme.colors.accent
+                                    )
+                                    Spacer(modifier = Modifier.height(Spacing.sm))
+                                    Text(
+                                        text = stringResource(
+                                            R.string.editor_image_processing,
+                                            state.compressionCurrent + 1,
+                                            state.compressionTotal
+                                        ),
+                                        color = XixiTheme.colors.textPrimary,
+                                        fontSize = 12.sp,
+                                        letterSpacing = 0.3.sp
                                     )
                                 }
                             }
                         }
                     }
-                }
 
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // 删除任务
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(Color(0xFF7F1D1D).copy(alpha = 0.18f))
-                        .clickableNoRipple {
-                            if (state.isImportant) {
-                                viewModel.showDeleteConfirm()
-                            } else if (!state.isNew) {
-                                viewModel.deleteTask(onDone = onClose)
-                            } else {
-                                viewModel.cancel(onDone = onClose)
+                    // 添加图片 inline 菜单
+                    AnimatedVisibility(
+                        visible = state.imageMenuVisible,
+                        enter = fadeIn(tween(180, easing = GentleEasing)),
+                        exit = fadeOut(tween(140, easing = GentleEasing))
+                    ) {
+                        Column(modifier = Modifier.padding(top = Spacing.sm)) {
+                            MenuRow(
+                                icon = Icons.Default.PhotoLibrary,
+                                label = stringResource(R.string.editor_image_from_gallery),
+                                onClick = {
+                                    viewModel.hideImageMenu()
+                                    launchGallery()
+                                }
+                            )
+                            // 无相机或权限被拒时隐藏「拍照」
+                            if (cameraAvailability.canTakePhoto) {
+                                MenuRow(
+                                    icon = Icons.Default.AddPhotoAlternate,
+                                    label = stringResource(R.string.editor_image_take_photo),
+                                    onClick = {
+                                        viewModel.hideImageMenu()
+                                        takePhoto()
+                                    }
+                                )
                             }
                         }
-                        .padding(vertical = 14.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = stringResource(R.string.editor_delete_action),
-                        color = Color(0xFFEF4444),
-                        fontSize = 14.sp,
-                        letterSpacing = 0.5.sp,
-                        fontWeight = FontWeight.Medium
-                    )
+                    }
                 }
 
                 // 重要事项删除确认
@@ -602,7 +589,44 @@ fun DetailScreen(
                     onCancel = { viewModel.hideDeleteConfirm() }
                 )
 
-                Spacer(modifier = Modifier.height(120.dp))
+                Spacer(modifier = Modifier.height(Spacing.lg))
+            }
+
+            // -------------------------------------------- 底部固定删除按钮（不滚动）
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(
+                        start = Spacing.screenH,
+                        end = Spacing.screenH,
+                        top = Spacing.sm,
+                        bottom = Spacing.lg
+                    )
+                    .shadow(XixiElevation.card, XixiTheme.shapes.item)
+                    .clip(XixiTheme.shapes.item)
+                    .background(XixiTheme.colors.card)
+                    .clickableNoRipple {
+                        if (state.isImportant) {
+                            viewModel.showDeleteConfirm()
+                        } else if (!state.isNew) {
+                            viewModel.deleteTask(onDone = onClose)
+                        } else {
+                            viewModel.cancel(onDone = onClose)
+                        }
+                    }
+                    .padding(vertical = 15.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    // 新建任务没有可删对象，按钮语义退化为「取消」
+                    text = stringResource(
+                        if (state.isNew) R.string.action_cancel else R.string.editor_delete_action
+                    ),
+                    color = XixiTheme.colors.danger,
+                    fontSize = 15.sp,
+                    letterSpacing = 0.3.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
             }
         }
 
@@ -623,7 +647,8 @@ fun DetailScreen(
             },
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(16.dp)
+                .padding(Spacing.lg)
+                .padding(bottom = 72.dp)
         )
 
         // 保存失败 / 压缩失败提示
@@ -638,17 +663,18 @@ fun DetailScreen(
         ) {
             Box(
                 modifier = Modifier
-                    .padding(horizontal = 16.dp)
-                    .clip(RoundedCornerShape(14.dp))
+                    .padding(horizontal = Spacing.lg)
+                    .shadow(XixiElevation.cardStrong, XixiTheme.shapes.item)
+                    .clip(XixiTheme.shapes.item)
                     .background(XixiTheme.colors.card)
                     .clickableNoRipple { viewModel.clearMessage() }
-                    .padding(horizontal = 14.dp, vertical = 12.dp)
+                    .padding(horizontal = Spacing.lg, vertical = Spacing.md)
             ) {
                 Text(
                     text = message.orEmpty(),
                     color = XixiTheme.colors.textPrimary,
                     fontSize = 13.sp,
-                    letterSpacing = 0.5.sp
+                    letterSpacing = 0.3.sp
                 )
             }
         }
@@ -838,18 +864,35 @@ private fun DatePickerDialog(
     )
 }
 
-/** 卡片容器 */
+/** 分组卡片容器：16dp 圆角 + 柔和阴影 + 20dp 内边距 */
 @Composable
 private fun FieldCard(content: @Composable () -> Unit) {
-    Box(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
+            .shadow(XixiElevation.card, XixiTheme.shapes.item)
+            .clip(XixiTheme.shapes.item)
             .background(XixiTheme.colors.card)
-            .padding(16.dp)
+            .padding(Spacing.cardPadding)
     ) {
         content()
     }
+}
+
+/** 分组内的小标签（辅助信息，12sp 次要色） */
+@Composable
+private fun FieldLabel(
+    text: String,
+    modifier: Modifier = Modifier
+) {
+    Text(
+        text = text,
+        color = XixiTheme.colors.textSecondary,
+        fontSize = 12.sp,
+        fontWeight = FontWeight.Medium,
+        letterSpacing = 0.3.sp,
+        modifier = modifier
+    )
 }
 
 /** 标签开关（重要 / 紧急 / 我来做 / 已完成） */
@@ -873,23 +916,23 @@ private fun TagChip(
     Box(
         modifier = Modifier
             .scale(scale)
-            .clip(RoundedCornerShape(12.dp))
+            .clip(XixiTheme.shapes.pill)
             .background(background)
             .then(
                 if (selected) {
-                    Modifier.border(1.dp, color.copy(alpha = 0.6f), RoundedCornerShape(12.dp))
+                    Modifier.border(1.dp, color.copy(alpha = 0.6f), XixiTheme.shapes.pill)
                 } else {
-                    Modifier
+                    Modifier.border(1.dp, XixiTheme.colors.outline, XixiTheme.shapes.pill)
                 }
             )
             .clickableNoRipple(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 8.dp)
+            .padding(horizontal = Spacing.lg, vertical = Spacing.sm)
     ) {
         Text(
             text = label,
             color = if (selected) color else XixiTheme.colors.textSecondary,
             fontSize = 13.sp,
-            letterSpacing = 0.5.sp,
+            letterSpacing = 0.3.sp,
             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
         )
     }
@@ -904,12 +947,13 @@ private fun PickerRow(
     onClear: (() -> Unit)?,
     onClick: () -> Unit
 ) {
+    val notSet = stringResource(R.string.editor_not_set)
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
+            .clip(XixiTheme.shapes.thumbnail)
             .clickableNoRipple(onClick = onClick)
-            .padding(vertical = 8.dp),
+            .padding(vertical = Spacing.md),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
@@ -918,28 +962,29 @@ private fun PickerRow(
             tint = XixiTheme.colors.textSecondary,
             modifier = Modifier.size(18.dp)
         )
-        Spacer(modifier = Modifier.width(10.dp))
+        Spacer(modifier = Modifier.width(Spacing.md))
         Text(
             text = label,
             color = XixiTheme.colors.textPrimary,
-            fontSize = 14.sp,
-            letterSpacing = 0.5.sp
+            fontSize = 15.sp,
+            letterSpacing = 0.3.sp
         )
         Spacer(modifier = Modifier.weight(1f))
         Text(
             text = value,
-            color = if (value == "未设置") XixiTheme.colors.textSecondary
-            else MaterialTheme.colorScheme.primary,
+            // 已设置为强调色，未设置为辅助色
+            color = if (value == notSet) XixiTheme.colors.textTertiary
+            else XixiTheme.colors.accent,
             fontSize = 13.sp,
-            letterSpacing = 0.5.sp,
+            letterSpacing = 0.3.sp,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
         if (onClear != null) {
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(Spacing.sm))
             Box(
                 modifier = Modifier
-                    .size(22.dp)
+                    .size(24.dp)
                     .clip(CircleShape)
                     .clickableNoRipple(onClick = onClear),
                 contentAlignment = Alignment.Center
@@ -955,7 +1000,7 @@ private fun PickerRow(
     }
 }
 
-/** 图片区域：横向滚动 80dp × 80dp 缩略图 + 末尾添加按钮 */
+/** 图片区域：横向滚动 84dp × 84dp 缩略图 + 末尾添加按钮 */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun ImageStrip(
@@ -969,13 +1014,13 @@ private fun ImageStrip(
         modifier = Modifier
             .fillMaxWidth()
             .horizontalScroll(rememberScrollState()),
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
+        horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
     ) {
         state.images.forEachIndexed { index, image ->
             Box(
                 modifier = Modifier
-                    .size(80.dp)
-                    .clip(RoundedCornerShape(8.dp))
+                    .size(ThumbSize)
+                    .clip(XixiTheme.shapes.thumbnail)
                     .combinedClickable(
                         onClick = { },
                         onDoubleClick = { onOpenViewer(index) }
@@ -987,11 +1032,11 @@ private fun ImageStrip(
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()
                 )
-                // 右上角删除按钮 24dp（半透明黑底 + 白色 Close）
+                // 右上角删除按钮（半透明深底 + 高对比 Close）
                 Box(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
-                        .padding(2.dp)
+                        .padding(Spacing.xs)
                         .size(24.dp)
                         .clip(CircleShape)
                         .background(Color.Black.copy(alpha = 0.45f))
@@ -1008,13 +1053,13 @@ private fun ImageStrip(
             }
         }
 
-        // 末尾「+ 添加」按钮：80dp × 80dp 虚线边框
+        // 末尾「+ 添加」按钮：虚线边框
         if (state.remainingImageSlots > 0) {
             Box(
                 modifier = Modifier
-                    .size(80.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .dashedBorder()
+                    .size(ThumbSize)
+                    .clip(XixiTheme.shapes.thumbnail)
+                    .dashedBorder(XixiTheme.colors.outline)
                     .clickableNoRipple(enabled = !state.compressing, onClick = onAdd),
                 contentAlignment = Alignment.Center
             ) {
@@ -1025,12 +1070,12 @@ private fun ImageStrip(
                         tint = XixiTheme.colors.textSecondary,
                         modifier = Modifier.size(20.dp)
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(Spacing.xs))
                     Text(
                         text = stringResource(R.string.action_add_image),
                         color = XixiTheme.colors.textSecondary,
                         fontSize = 11.sp,
-                        letterSpacing = 0.5.sp
+                        letterSpacing = 0.3.sp
                     )
                 }
             }
@@ -1038,12 +1083,15 @@ private fun ImageStrip(
     }
 }
 
-/** 虚线边框 */
-private fun Modifier.dashedBorder(): Modifier = this.drawBehind {
+/** 缩略图边长 */
+private val ThumbSize = 84.dp
+
+/** 虚线边框：使用细描边色，与实心缩略图形成"可添加"的语义区分 */
+private fun Modifier.dashedBorder(color: Color): Modifier = this.drawBehind {
     drawRoundRect(
-        color = Color(0xFF71717A),
+        color = color,
         size = size,
-        cornerRadius = CornerRadius(8.dp.toPx()),
+        cornerRadius = CornerRadius(com.xixi.notes.ui.theme.XixiRadius.thumbnail.toPx()),
         style = Stroke(
             width = 1.dp.toPx(),
             pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 6f), 0f)
@@ -1061,9 +1109,9 @@ private fun MenuRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
+            .clip(XixiTheme.shapes.thumbnail)
             .clickableNoRipple(onClick = onClick)
-            .padding(horizontal = 8.dp, vertical = 12.dp),
+            .padding(horizontal = Spacing.sm, vertical = Spacing.md),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
@@ -1072,12 +1120,12 @@ private fun MenuRow(
             tint = XixiTheme.colors.textPrimary,
             modifier = Modifier.size(18.dp)
         )
-        Spacer(modifier = Modifier.width(10.dp))
+        Spacer(modifier = Modifier.width(Spacing.md))
         Text(
             text = label,
             color = XixiTheme.colors.textPrimary,
             fontSize = 14.sp,
-            letterSpacing = 0.5.sp
+            letterSpacing = 0.3.sp
         )
     }
 }

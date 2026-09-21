@@ -300,7 +300,18 @@ fun ChecklistButton(
     }
 }
 
-/** 分组头部 56dp：分组名 + 数量徽章 + 折叠箭头 */
+/** 分组头部卡片圆角（小卡片 16dp） */
+private val GroupHeaderShape = RoundedCornerShape(XixiRadius.medium)
+
+/** 分组头部卡片高度 */
+private val GroupHeaderHeight = 52.dp
+
+/**
+ * 分组头部：圆角小卡片（分组名 + 数量徽章 + 折叠箭头）。
+ *
+ * 视觉：象限色实心圆点标记分类，标题主色加粗，数量徽章用胶囊 + 象限色淡底，
+ * 箭头为次要色；卡片本身使用与任务行一致的底色与柔和阴影，形成清晰的分区节奏。
+ */
 @Composable
 fun GroupHeaderRow(
     title: String,
@@ -319,19 +330,23 @@ fun GroupHeaderRow(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .height(56.dp)
+            .padding(horizontal = Spacing.md, vertical = Spacing.sm)
+            .height(GroupHeaderHeight)
+            .shadow(XixiElevation.card, GroupHeaderShape)
+            .clip(GroupHeaderShape)
+            .background(XixiTheme.colors.card)
             .clickableNoRipple(onClick = onToggleFold)
             .padding(horizontal = Spacing.lg),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // 象限色圆点
+        // 象限色实心圆点
         Box(
             modifier = Modifier
                 .size(8.dp)
                 .clip(CircleShape)
                 .background(color)
         )
-        Spacer(modifier = Modifier.width(Spacing.sm))
+        Spacer(modifier = Modifier.width(Spacing.md))
         Text(
             text = title,
             color = XixiTheme.colors.textPrimary,
@@ -345,7 +360,7 @@ fun GroupHeaderRow(
             modifier = Modifier
                 .clip(RoundedCornerShape(percent = 50))
                 .background(color.copy(alpha = 0.18f))
-                .padding(horizontal = 8.dp, vertical = 3.dp)
+                .padding(horizontal = 8.dp, vertical = 2.dp)
         ) {
             Text(
                 text = count.toString(),
@@ -362,7 +377,7 @@ fun GroupHeaderRow(
             contentDescription = stringResource(
                 if (folded) R.string.cd_expand_group else R.string.cd_collapse_group
             ),
-            tint = XixiTheme.colors.textTertiary,
+            tint = XixiTheme.colors.textSecondary,
             modifier = Modifier
                 .size(20.dp)
                 .rotate(arrowRotation)

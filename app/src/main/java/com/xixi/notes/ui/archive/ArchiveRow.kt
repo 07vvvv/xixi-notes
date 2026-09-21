@@ -25,7 +25,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
@@ -37,13 +37,20 @@ import com.xixi.notes.data.local.TaskEntity
 import com.xixi.notes.ui.board.Quadrant
 import com.xixi.notes.ui.components.clickableNoRipple
 import com.xixi.notes.ui.components.colorOf
+import com.xixi.notes.ui.theme.Spacing
+import com.xixi.notes.ui.theme.XixiElevation
+import com.xixi.notes.ui.theme.XixiRadius
 import com.xixi.notes.ui.theme.XixiTheme
 import com.xixi.notes.ui.util.formatDateTime
+
+/** 归档行卡片圆角（与主屏任务行一致） */
+private val ArchiveRowShape = RoundedCornerShape(XixiRadius.medium)
 
 /**
  * 归档任务行。
  *
- * 支持取消完成与永久删除，并显示完成时间。
+ * 视觉与主屏任务行保持同一套卡片规范（16dp 圆角 + 2dp 柔和阴影 + 卡片底色 + 留白），
+ * 保证「主屏 → 归档」的观感连续；支持取消完成与永久删除，并显示完成时间。
  */
 @Composable
 fun ArchiveRow(
@@ -58,8 +65,9 @@ fun ArchiveRow(
     val quadrantColor = XixiTheme.quadrant.colorOf(quadrant)
     val completedAt = task.completedAt ?: task.updatedAt
 
+    // 高亮闪烁：统一强调色的 20% 透明 -> 0%
     val highlightColor by animateColorAsState(
-        targetValue = Color(0xFF6EE7B7).copy(alpha = 0.20f * highlightAlpha),
+        targetValue = XixiTheme.colors.accent.copy(alpha = 0.20f * highlightAlpha),
         animationSpec = tween(durationMillis = 200),
         label = "archive_highlight"
     )
@@ -67,12 +75,13 @@ fun ArchiveRow(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 3.dp)
-            .clip(RoundedCornerShape(12.dp))
+            .padding(horizontal = Spacing.md, vertical = 3.dp)
+            .shadow(XixiElevation.card, ArchiveRowShape)
+            .clip(ArchiveRowShape)
             .background(XixiTheme.colors.card)
             .background(highlightColor)
             .clickableNoRipple(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 12.dp),
+            .padding(horizontal = Spacing.lg, vertical = Spacing.md),
         verticalAlignment = Alignment.CenterVertically
     ) {
         // 象限色圆点
@@ -82,26 +91,27 @@ fun ArchiveRow(
                 .clip(CircleShape)
                 .background(quadrantColor)
         )
-        Spacer(modifier = Modifier.width(10.dp))
+        Spacer(modifier = Modifier.width(Spacing.md))
 
         Column(modifier = Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = task.title,
+                    // 已完成：整体降透明度 + 删除线
                     color = XixiTheme.colors.textPrimary.copy(alpha = 0.75f),
                     fontSize = 15.sp,
-                    letterSpacing = 0.5.sp,
+                    letterSpacing = 0.3.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     textDecoration = TextDecoration.LineThrough,
                     modifier = Modifier.weight(1f, fill = false)
                 )
                 if (task.imagePaths.isNotEmpty()) {
-                    Spacer(modifier = Modifier.width(6.dp))
+                    Spacer(modifier = Modifier.width(Spacing.xs))
                     Icon(
                         imageVector = Icons.Default.Image,
                         contentDescription = stringResource(R.string.cd_has_image),
-                        tint = XixiTheme.colors.textSecondary,
+                        tint = XixiTheme.colors.textTertiary,
                         modifier = Modifier.size(12.dp)
                     )
                 }
@@ -112,20 +122,20 @@ fun ArchiveRow(
                     R.string.archive_completed_at,
                     formatDateTime(completedAt)
                 ),
-                color = XixiTheme.colors.textSecondary,
+                color = XixiTheme.colors.textTertiary,
                 fontSize = 12.sp,
-                letterSpacing = 0.5.sp,
+                letterSpacing = 0.3.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
         }
 
-        Spacer(modifier = Modifier.width(8.dp))
+        Spacer(modifier = Modifier.width(Spacing.sm))
 
-        // 取消完成
+        // 取消完成：使用「完成」专用绿
         Box(
             modifier = Modifier
-                .size(28.dp)
+                .size(30.dp)
                 .clip(CircleShape)
                 .clickableNoRipple(onClick = onUncomplete),
             contentAlignment = Alignment.Center
@@ -133,17 +143,17 @@ fun ArchiveRow(
             Icon(
                 imageVector = Icons.Default.Check,
                 contentDescription = stringResource(R.string.archive_uncomplete),
-                tint = Color(0xFF22C55E),
+                tint = XixiTheme.colors.check,
                 modifier = Modifier.size(18.dp)
             )
         }
 
-        Spacer(modifier = Modifier.width(4.dp))
+        Spacer(modifier = Modifier.width(Spacing.xs))
 
-        // 永久删除
+        // 永久删除：危险色
         Box(
             modifier = Modifier
-                .size(28.dp)
+                .size(30.dp)
                 .clip(CircleShape)
                 .clickableNoRipple(onClick = onDelete),
             contentAlignment = Alignment.Center
@@ -151,7 +161,7 @@ fun ArchiveRow(
             Icon(
                 imageVector = Icons.Default.Delete,
                 contentDescription = stringResource(R.string.action_delete),
-                tint = Color(0xFFEF4444),
+                tint = XixiTheme.colors.danger,
                 modifier = Modifier.size(18.dp)
             )
         }
@@ -164,28 +174,30 @@ fun ArchiveNoResult(onClear: () -> Unit, modifier: Modifier = Modifier) {
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(32.dp),
+            .padding(Spacing.huge),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
             text = stringResource(R.string.search_no_result_archive),
             color = XixiTheme.colors.textPrimary,
             fontSize = 15.sp,
-            letterSpacing = 0.5.sp
+            fontWeight = FontWeight.Medium,
+            letterSpacing = 0.3.sp
         )
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(Spacing.md))
         Box(
             modifier = Modifier
-                .clip(RoundedCornerShape(12.dp))
+                .shadow(XixiElevation.card, XixiTheme.shapes.small)
+                .clip(XixiTheme.shapes.small)
                 .background(XixiTheme.colors.card)
                 .clickableNoRipple(onClick = onClear)
-                .padding(horizontal = 16.dp, vertical = 10.dp)
+                .padding(horizontal = Spacing.lg, vertical = Spacing.sm)
         ) {
             Text(
                 text = stringResource(R.string.action_clear_search),
                 color = XixiTheme.colors.textPrimary,
                 fontSize = 13.sp,
-                letterSpacing = 0.5.sp,
+                letterSpacing = 0.3.sp,
                 fontWeight = FontWeight.Medium
             )
         }

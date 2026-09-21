@@ -65,7 +65,6 @@ import com.xixi.notes.ui.detail.DetailScreen
 import com.xixi.notes.ui.onboarding.OnboardingScreen
 import com.xixi.notes.ui.settings.SettingsScreen
 import com.xixi.notes.ui.stats.StatsScreen
-import com.xixi.notes.ui.theme.XixiTheme
 import com.xixi.notes.ui.util.GentleEasing
 import com.xixi.notes.ui.viewer.ImageViewerScreen
 import kotlinx.coroutines.delay
@@ -224,7 +223,8 @@ fun MainScaffold(
         label = "fab_bottom"
     )
 
-    // 窗口 insets：底部系统栏 ∪ IME
+    // 窗口 insets：底部系统栏 ∪ IME（FAB 占位层仍然需要它来避让系统栏；
+    // Dock 自己内部也按同一套 insets 避让，两处互不影响）
     val windowInsets = WindowInsets.navigationBars
         .only(WindowInsetsSides.Bottom)
         .union(WindowInsets.ime)
@@ -393,10 +393,11 @@ fun MainScaffold(
                             restoreState = true
                         }
                     }
-                },
-                modifier = Modifier
-                    .background(XixiTheme.colors.background)
-                    .windowInsetsPadding(windowInsets)
+                }
+                // 注意：这里不再加 background / windowInsetsPadding。
+                // 之前 Dock 会在整个导航栏内边距区域画一整块不透明深色底（浅色主题下就是一条黑条），
+                // 切换标签时这一块会闪一下。现在背景只画在 DockView 自己的圆角卡片上，
+                // 底部 insets 也由 DockView 内部通过 windowInsetsPadding 处理。
             )
         }
 
