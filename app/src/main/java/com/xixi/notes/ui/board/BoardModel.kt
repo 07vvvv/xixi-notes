@@ -10,6 +10,7 @@ import com.xixi.notes.data.local.TaskEntity
  */
 enum class Quadrant(
     @StringRes val titleRes: Int,
+    /** 短标题（扇形菜单等空间受限处使用） */
     @StringRes val shortTitleRes: Int
 ) {
     IMPORTANT_URGENT(R.string.quadrant_important_urgent, R.string.quadrant_important_urgent_short),
@@ -73,12 +74,6 @@ enum class CompletedStyle {
     /** 隐藏，通过顶部栏眼睛图标找回 */
     HIDDEN
 }
-
-/** 一个可显示的任务：实体 + 派生信息 */
-data class TaskUi(
-    val task: TaskEntity,
-    val quadrant: Quadrant
-)
 
 /** 轻重缓急模式下的一个分组 */
 data class TaskQuadrantGroup(

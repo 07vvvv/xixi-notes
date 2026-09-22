@@ -14,9 +14,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-/** HIGHLIGHT 定位目标 */
-data class HighlightTarget(val taskId: Long, val nonce: Long)
-
 /** 根级 UI 状态 */
 data class AppUiState(
     /** 归档页需要高亮的任务 id */
@@ -178,9 +175,6 @@ class MainViewModel(
         viewModelScope.launch { repository.deleteTask(task) }
     }
 
-    fun getTask(taskId: Long, onResult: (TaskEntity?) -> Unit) {
-        viewModelScope.launch { onResult(repository.getTaskById(taskId)) }
-    }
     /**
      * 撤销当前槽位。
      *

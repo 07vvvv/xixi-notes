@@ -301,11 +301,6 @@ class DetailViewModel(
         }
     }
 
-    /** 进入全屏查看：返回初始页下标 */
-    fun openViewer(index: Int, onOpen: (Int) -> Unit) {
-        onOpen(index)
-    }
-
     // ------------------------------------------------------------ 保存 / 取消
 
     fun save(onDone: (Long) -> Unit) {

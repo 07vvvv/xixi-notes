@@ -146,23 +146,6 @@ class TaskRepository(
         }
     }
 
-    /** 直接更新图片路径列表（用于新建完成后的补写） */
-    suspend fun updateImagePaths(id: Long, paths: List<String>) = withContext(Dispatchers.IO) {
-        val existing = dao.getTaskById(id) ?: return@withContext
-        dao.updateFields(
-            id = id,
-            title = existing.title,
-            description = existing.description,
-            isImportant = existing.isImportant,
-            isUrgent = existing.isUrgent,
-            isAssignedToMe = existing.isAssignedToMe,
-            dueDate = existing.dueDate,
-            reminderTime = existing.reminderTime,
-            imagePathsJson = Json.encodeToString(paths),
-            updatedAt = System.currentTimeMillis()
-        )
-    }
-
     /** 先删数据库记录，再删图片文件夹 */
     suspend fun deleteTask(task: TaskEntity) = withContext(Dispatchers.IO) {
         dao.delete(task)

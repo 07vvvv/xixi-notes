@@ -233,19 +233,7 @@ object Spacing {
 
     /** 大卡片内边距 */
     val largeCardPadding = 24.dp
-
-    /** 列表条目垂直内边距 */
-    val rowV = 14.dp
-
-    /** 按钮高度 */
-    val buttonHeight = 52.dp
-
-    /** 小按钮 / 胶囊高度 */
-    val chipHeight = 36.dp
 }
-
-/** 统一的卡片内边距（保持向后兼容的旧名） */
-val ContentPadding = 16.dp
 
 // ---------------------------------------------------------------------------
 // 阴影
@@ -262,15 +250,6 @@ object XixiElevation {
     /** 主卡片 / 统计大卡（3dp） */
     val cardStrong = 3.dp
 
-    /** 按下态（降到 1dp，视觉上"压下去"） */
-    val pressed = 1.dp
-
-    /** 悬浮层 / Dock（6dp） */
-    val floating = 6.dp
-
     /** FAB 展开态（8dp） */
     val fab = 8.dp
-
-    /** 深色模式系数：深色底上阴影更弱 */
-    const val DARK_FACTOR = 0.5f
 }

@@ -36,12 +36,6 @@ sealed interface BoardRow {
     }
 }
 
-/** 主屏一次性事件 */
-sealed interface BoardEvent {
-    data object ScrolledToTop : BoardEvent
-    data class Error(val message: String) : BoardEvent
-}
-
 /** 主屏筛选条件（由统计页点击传入） */
 sealed interface BoardFilter {
     /** 单个象限 */
@@ -333,26 +327,9 @@ class BoardViewModel(
         transientVisible.value = emptySet()
     }
 
-    fun toggleCheckedOff(task: TaskEntity) {
-        viewModelScope.launch { repository.setCheckedOff(task.id, !task.isCheckedOff) }
-    }
-
-    fun setImportant(task: TaskEntity, value: Boolean) {
-        viewModelScope.launch { repository.setImportant(task.id, value) }
-    }
-
-    fun setUrgent(task: TaskEntity, value: Boolean) {
-        viewModelScope.launch { repository.setUrgent(task.id, value) }
-    }
-
     /** 立即删除（重要任务确认后 / 归档永久删除） */
     fun deleteNow(task: TaskEntity) {
         viewModelScope.launch { repository.deleteTask(task) }
-    }
-
-    /** 撤销完成状态 */
-    fun uncomplete(task: TaskEntity) {
-        viewModelScope.launch { repository.setCheckedOff(task.id, false) }
     }
 
     class Factory(

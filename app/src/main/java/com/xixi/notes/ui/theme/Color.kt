@@ -70,9 +70,6 @@ val LightTextTertiary = Color(0xFF8A8A94)
 /** 浅色按下态高亮覆盖 */
 val LightPressedOverlay = Color(0xFFE9E9EE)
 
-/** 最深色（图片查看器等纯黑场景复用） */
-val InkBlack = Color(0xFF09090B)
-
 /** 纯白 */
 val PureWhite = Color(0xFFFFFFFF)
 
@@ -123,15 +120,7 @@ data class QuadrantColors(
     val urgentOnly: Color,
     val importantOnly: Color,
     val neither: Color
-) {
-    /** 取四象限对应的强调色 */
-    fun colorOf(quadrant: Int): Color = when (quadrant) {
-        0 -> importantUrgent
-        1 -> urgentOnly
-        2 -> importantOnly
-        else -> neither
-    }
-}
+)
 
 val XixiQuadrantColors = QuadrantColors(
     importantUrgent = QuadrantImportantUrgent,
