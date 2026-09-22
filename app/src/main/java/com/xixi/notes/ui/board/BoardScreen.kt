@@ -51,6 +51,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -146,9 +147,20 @@ fun BoardScreen(
         initialValue = AppPrefs()
     )
 
-    // 统计页点击带来的筛选条件：进入主屏后写入 SavedStateHandle（进程重建后仍可恢复）
-    LaunchedEffect(initialFilter) {
-        viewModel.setFilter(parseFilterArg(initialFilter))
+    // 统计页点击带来的筛选条件：仅在本次进入主屏时写入 SavedStateHandle。
+    //
+    // key 用 Unit（而不是 initialFilter）：路由参数 filter 在本次 entry 生命周期内不会改变，
+    // 若把它当 key，entry 被恢复/重建时会再次写入，把用户已经清掉的筛选重新"复活"，
+    // 于是返回键永远停留在"取消筛选"分支，无法退出主屏（主页点不动、只能杀应用）。
+    //
+    // 只在 entryFilterToken == null（本次进入尚未写入过筛选）时写入：用户点 ✕ 或按返回键
+    // 清掉筛选后，token 变为 null 但本次组合不会重跑，因此不会被重新写回；
+    // 进程重建时 entryFilterToken 恢复为初始 null，正好重新应用路由参数。
+    val currentInitialFilter by rememberUpdatedState(initialFilter)
+    LaunchedEffect(Unit) {
+        if (viewModel.uiState.value.entryFilterToken == null) {
+            viewModel.setFilter(parseFilterArg(currentInitialFilter))
+        }
     }
 
     // 排序菜单与确认态

@@ -398,7 +398,10 @@ fun MainScaffold(
                                 saveState = true
                             }
                             launchSingleTop = true
-                            restoreState = true
+                            // 不恢复各 tab 的历史状态：board 的历史 entry 上刻着统计页传进来的
+                            // filter 路由参数，restoreState = true 会把它一并恢复，
+                            // 导致"清掉的筛选复活 / 返回键失效 / 主页点不动"。
+                            restoreState = false
                         }
                     }
                 }
