@@ -1,11 +1,8 @@
 package com.xixi.notes.ui.board
 
-import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.CreationExtras
 import com.xixi.notes.data.local.TaskEntity
 import com.xixi.notes.data.preferences.AppPrefs
 import com.xixi.notes.data.preferences.AppPreferences
@@ -58,14 +55,12 @@ sealed interface BoardFilter {
 }
 
 /**
- * 筛选条件的持久化令牌（存入 [SavedStateHandle]，进程被杀重建后仍能恢复）。
+ * 筛选条件 [BoardFilter] 只有一个事实来源：主屏的路由参数 `board?filter={filter}`。
  *
- * - 象限筛选：`"quadrant:IMPORTANT_URGENT"` / `"quadrant:OVERDUE"` 由统计页传入
- * - 逾期筛选：`"overdue"`
- * - 无筛选：`null`
+ * 本 ViewModel **不再**持久化筛选（原先的 `board_filter_token` 已删除）：
+ * 路由参数本身随返回栈保存与恢复，进程重建后由 `BoardScreen(initialFilter = ...)`
+ * 重新解析并写回这里的内存态。少一份来源，就不会再出现"清掉的筛选被复活"。
  */
-private const val FILTER_QUADRANT_PREFIX = "quadrant:"
-private const val FILTER_OVERDUE = "overdue"
 
 /** 主屏 UI 状态 */
 data class BoardUiState(
@@ -76,26 +71,21 @@ data class BoardUiState(
     val searching: Boolean = false,
     val foldedGroups: Map<String, Boolean> = emptyMap(),
     val hasAnyTask: Boolean = false,
+    /** 当前生效的筛选条件（来自路由参数） */
     val filter: BoardFilter = BoardFilter.None,
-    /**
-     * 从统计页带进来的筛选令牌（用户在主屏点「清除筛选」后会被清空）。
-     *
-     * 返回键逻辑用它区分「筛选后进入的主屏」与「普通主屏」：
-     * 非空表示本次是由统计页筛选进入，返回时应取消筛选并回到统计页。
-     */
-    val entryFilterToken: String? = null,
     /** 是否全部四个分组都处于折叠状态（驱动眼睛图标） */
     val allGroupsFolded: Boolean = false
 ) {
     val isEmpty: Boolean get() = rows.isEmpty()
     val noSearchResult: Boolean get() = searching && rows.isEmpty()
+
+    /** 是否处于筛选态（返回键据此决定"清筛选"还是"退到后台"） */
     val filterActive: Boolean get() = filter != BoardFilter.None
 }
 
 class BoardViewModel(
     private val repository: TaskRepository,
-    private val preferences: AppPreferences,
-    private val savedStateHandle: SavedStateHandle
+    private val preferences: AppPreferences
 ) : ViewModel() {
 
     /** 搜索关键词（独立于 UI 状态，避免每次输入都重建分组） */
@@ -104,9 +94,13 @@ class BoardViewModel(
     /** 搜索框是否展开 */
     private val searchExpanded = MutableStateFlow(false)
 
-    /** 统计页传入的筛选条件（令牌持久化在 SavedStateHandle） */
-    private val filterToken: StateFlow<String?> =
-        savedStateHandle.getStateFlow<String?>(KEY_FILTER_TOKEN, null)
+    /**
+     * 当前筛选条件（内存态）。
+     *
+     * 由 [BoardScreen] 在进入主屏时依据路由参数写入（[setRouteFilter]），
+     * 用户清筛选时由路由参数变成 null 重新写入 —— 全程只有路由参数这一个来源。
+     */
+    private val routeFilter = MutableStateFlow<BoardFilter>(BoardFilter.None)
 
     /** HIGHLIGHT 定位时临时显示的任务 id（离开主屏复位） */
     private val transientVisible = MutableStateFlow<Set<Long>>(emptySet())
@@ -134,10 +128,10 @@ class BoardViewModel(
     }
 
     private val extraInputs = combine(
-        filterToken,
+        routeFilter,
         transientVisible
-    ) { token, transient ->
-        token to transient
+    ) { filter, transient ->
+        filter to transient
     }
 
     val uiState: StateFlow<BoardUiState> = combine(
@@ -149,7 +143,7 @@ class BoardViewModel(
             prefs = base.prefs,
             currentQuery = base.query,
             expanded = base.expanded,
-            token = extra.first,
+            filter = extra.first,
             transient = extra.second
         )
     }.stateIn(
@@ -163,7 +157,7 @@ class BoardViewModel(
         prefs: AppPrefs,
         currentQuery: String,
         expanded: Boolean,
-        token: String?,
+        filter: BoardFilter,
         transient: Set<Long>
     ): BoardUiState {
         val searching = expanded && currentQuery.isNotBlank()
@@ -175,8 +169,7 @@ class BoardViewModel(
             tasks
         }
 
-        // 统计页筛选
-        val filter = token.toFilter()
+        // 筛选：直接使用路由参数解析出来的条件
         val filtered = applyFilter(matched, filter)
 
         // 已完成显示方式：HIDDEN 时排除，但高亮定位的任务临时可见
@@ -201,7 +194,6 @@ class BoardViewModel(
             foldedGroups = prefs.foldedGroups,
             hasAnyTask = tasks.isNotEmpty(),
             filter = filter,
-            entryFilterToken = token,
             allGroupsFolded = allFolded
         )
     }
@@ -303,15 +295,13 @@ class BoardViewModel(
         }
     }
 
-    /** 设置统计页传入的筛选条件（同时写入 SavedStateHandle 以便重建恢复） */
-    fun setFilter(filter: BoardFilter) {
-        // 显式指定泛型参数：令牌是可空的，null 表示「无筛选」
-        savedStateHandle.set<String?>(KEY_FILTER_TOKEN, filter.toToken())
-    }
-
-    /** 取消筛选（返回键 / 点击筛选条上的清除） */
-    fun clearFilter() {
-        savedStateHandle.set<String?>(KEY_FILTER_TOKEN, null)
+    /**
+     * 写入本次进入主屏的筛选条件（唯一来源是路由参数 `board?filter=`）。
+     *
+     * 不回写任何持久化存储：路由参数自己就是持久化的那一份。
+     */
+    fun setRouteFilter(filter: BoardFilter) {
+        routeFilter.value = filter
     }
 
     /** 切换排序模式（折叠状态仅轻重缓急模式有意义，切走时保留在 DataStore） */
@@ -370,38 +360,10 @@ class BoardViewModel(
         private val preferences: AppPreferences
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
-        override fun <T : ViewModel> create(modelClass: Class<T>, extras: CreationExtras): T =
+        override fun <T : ViewModel> create(modelClass: Class<T>): T =
             BoardViewModel(
                 repository = repository,
-                preferences = preferences,
-                // 由 Navigation 提供默认参数（NavBackStackEntry 实现了 HasDefaultViewModelProviderFactory），
-                // 用于在进程重建后恢复筛选状态
-                savedStateHandle = extras.createSavedStateHandle()
+                preferences = preferences
             ) as T
     }
-
-    companion object {
-        /** SavedStateHandle 中保存筛选令牌的键 */
-        const val KEY_FILTER_TOKEN = "board_filter_token"
-    }
-}
-
-/** 筛选条件 -> 持久化令牌（null 表示无筛选） */
-private fun BoardFilter.toToken(): String? = when (this) {
-    is BoardFilter.QuadrantOnly -> "$FILTER_QUADRANT_PREFIX${quadrant.name}"
-    BoardFilter.Overdue -> FILTER_OVERDUE
-    BoardFilter.None -> null
-}
-
-/** 持久化令牌 -> 筛选条件（容错：无法识别的令牌视为无筛选） */
-private fun String?.toFilter(): BoardFilter = when {
-    this == null -> BoardFilter.None
-    this == FILTER_OVERDUE -> BoardFilter.Overdue
-    startsWith(FILTER_QUADRANT_PREFIX) -> {
-        val name = removePrefix(FILTER_QUADRANT_PREFIX)
-        runCatching { Quadrant.valueOf(name) }.getOrNull()
-            ?.let { BoardFilter.QuadrantOnly(it) }
-            ?: BoardFilter.None
-    }
-    else -> BoardFilter.None
 }

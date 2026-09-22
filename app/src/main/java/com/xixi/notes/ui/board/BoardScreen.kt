@@ -112,7 +112,7 @@ private const val HIDE_THRESHOLD_PX = 50
  *
  * 返回键（由本页 BackHandler 统一处理，优先级高于根 Scaffold 的退出逻辑）：
  * 1. 收起 Inline Confirm -> 2. 收起排序菜单 -> 3. 收起搜索（含清空关键词）
- * -> 4. 有统计页筛选：取消筛选并回到统计页 -> 5. 无筛选：退出应用
+ * -> 4. 有筛选：去掉 filter 路由参数、原地重建为完整列表 -> 5. 无筛选：退出应用
  */
 @Composable
 fun BoardScreen(
@@ -126,8 +126,13 @@ fun BoardScreen(
     onOpenImageViewer: (Int) -> Unit,
     onSearchExpandedChange: (Boolean) -> Unit,
     onScrollVisibilityChange: (Boolean) -> Unit,
-    /** 返回键且「有筛选」时：取消筛选后回到统计页 */
-    onNavigateStats: () -> Unit,
+    /**
+     * 清掉筛选，由 MainScaffold 负责导航；本页不做任何筛选状态回写。
+     *
+     * @param returnToStats true：返回键 —— 清筛选并回到统计页（本次从统计页进来的话）；
+     *   false：筛选条 ✕ —— 只清筛选，留在主屏看完整列表。
+     */
+    onClearFilter: (returnToStats: Boolean) -> Unit,
     /** 返回键且「无筛选」时：退出应用（退到后台） */
     onExitApp: () -> Unit,
     modifier: Modifier = Modifier,
@@ -147,20 +152,14 @@ fun BoardScreen(
         initialValue = AppPrefs()
     )
 
-    // 统计页点击带来的筛选条件：仅在本次进入主屏时写入 SavedStateHandle。
+    // 筛选的唯一来源：本页的路由参数 board?filter={filter}。
     //
-    // key 用 Unit（而不是 initialFilter）：路由参数 filter 在本次 entry 生命周期内不会改变，
-    // 若把它当 key，entry 被恢复/重建时会再次写入，把用户已经清掉的筛选重新"复活"，
-    // 于是返回键永远停留在"取消筛选"分支，无法退出主屏（主页点不动、只能杀应用）。
-    //
-    // 只在 entryFilterToken == null（本次进入尚未写入过筛选）时写入：用户点 ✕ 或按返回键
-    // 清掉筛选后，token 变为 null 但本次组合不会重跑，因此不会被重新写回；
-    // 进程重建时 entryFilterToken 恢复为初始 null，正好重新应用路由参数。
+    // key 用 Unit：路由参数在本次 entry 生命周期内不会改变，只有"进入主屏"这一次需要解析。
+    // 不回写任何持久化存储（原先的 SavedStateHandle board_filter_token 已删除），
+    // 所以用户清掉筛选后不会被重新写回，也就不会出现"筛选标签清不掉 / 返回键失效"。
     val currentInitialFilter by rememberUpdatedState(initialFilter)
     LaunchedEffect(Unit) {
-        if (viewModel.uiState.value.entryFilterToken == null) {
-            viewModel.setFilter(parseFilterArg(currentInitialFilter))
-        }
+        viewModel.setRouteFilter(parseFilterArg(currentInitialFilter))
     }
 
     // 排序菜单与确认态
@@ -280,22 +279,19 @@ fun BoardScreen(
         }
     }
 
-    // 返回键优先级：确认框 -> 排序菜单 -> 搜索 -> 取消筛选回统计页 -> 退出应用
+    // 返回键优先级：确认框 -> 排序菜单 -> 搜索 -> 清筛选回统计页 -> 退出应用
     BackHandler(
         enabled = state.searchExpanded ||
             sortMenuOpen ||
             confirmingTaskId != null ||
-            (state.filterActive && state.entryFilterToken != null)
+            state.filterActive
     ) {
         when {
             confirmingTaskId != null -> confirmingTaskId = null
             sortMenuOpen -> sortMenuOpen = false
             state.searchExpanded -> viewModel.closeSearch()
-            // 从统计页筛选进入：先取消筛选，再回到统计页
-            state.filterActive && state.entryFilterToken != null -> {
-                viewModel.clearFilter()
-                onNavigateStats()
-            }
+            // 有筛选：清筛选；本次是从统计页筛选进来的话，顺带退回统计页
+            state.filterActive -> onClearFilter(true)
             // 没有筛选：退出应用（退到后台，不销毁任务状态）
             else -> onExitApp()
         }
@@ -386,7 +382,8 @@ fun BoardScreen(
             if (state.filterActive) {
                 FilterChipRow(
                     label = filterLabel(state.filter),
-                    onClear = { viewModel.clearFilter() }
+                    // 筛选条 ✕：只清筛选，留在主屏
+                    onClear = { onClearFilter(false) }
                 )
             }
 

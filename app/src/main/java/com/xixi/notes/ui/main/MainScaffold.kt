@@ -3,6 +3,8 @@ package com.xixi.notes.ui.main
 import android.app.Activity
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -65,6 +67,7 @@ import com.xixi.notes.ui.detail.DetailScreen
 import com.xixi.notes.ui.onboarding.OnboardingScreen
 import com.xixi.notes.ui.settings.SettingsScreen
 import com.xixi.notes.ui.stats.StatsScreen
+import com.xixi.notes.ui.theme.XixiTheme
 import com.xixi.notes.ui.util.GentleEasing
 import com.xixi.notes.ui.viewer.ImageViewerScreen
 import kotlinx.coroutines.delay
@@ -103,6 +106,23 @@ private fun DockTab.route(): String = when (this) {
     DockTab.ARCHIVE -> Routes.ARCHIVE
     DockTab.SETTINGS -> Routes.SETTINGS
 }
+
+/**
+ * 页面切换过渡时长（ms）。
+ *
+ * 只做极简 alpha 过渡：进入 0.95 -> 1.0、退出 1.0 -> 0.95，两个方向同长。
+ * 过渡期间露出的底色由根 Box 的主题背景 + 窗口背景兜底，绝不会是黑色。
+ * 若仍能肉眼看到黑幕，把 [NavScreenTransitionDurationMs] 设为 0 即可完全关闭过渡。
+ */
+private const val NavScreenTransitionDurationMs = 150
+
+/** 进入过渡：alpha 0.95 -> 1.0（无位移、无缩放、无黑色） */
+private val navEnterTransition: EnterTransition =
+    fadeIn(animationSpec = tween(durationMillis = NavScreenTransitionDurationMs, easing = GentleEasing))
+
+/** 退出过渡：alpha 1.0 -> 0.95（与进入同长，避免两页叠加出现暗带） */
+private val navExitTransition: ExitTransition =
+    fadeOut(animationSpec = tween(durationMillis = NavScreenTransitionDurationMs, easing = GentleEasing))
 
 /**
  * 取路由的路径部分（丢掉查询参数）。
@@ -188,6 +208,54 @@ fun MainScaffold(
     val isViewer = currentPath?.startsWith(Routes.IMAGE_VIEWER) == true
     val showChrome = !isOnboarding && !isEditor && !isViewer
 
+    /**
+     * 进入主屏（唯一入口）。
+     *
+     * - 主屏只有一种状态：路由参数 `board?filter={filter}`，filter 为 null 即完整列表。
+     *   所以「展示筛选」和「清除筛选」是同一件事：按新的 filter 重建一次主屏。
+     * - 需要调 filter 时先 `popUpTo(BOARD_PATTERN) { inclusive = true }` 把旧主屏 entry
+     *   弹掉，避免出现两个 board 实例（那正是返回键失效、Dock 主页点不动的根源）。
+     * - 若主屏就是栈顶且无需换 filter（例如 Dock 主页点自己），
+     *   则只 `launchSingleTop` 原地更新参数：既清掉筛选又不会把整个返回栈弹空。
+     */
+    fun navigateBoard(filter: String?) {
+        navController.navigate(Routes.board(filter)) {
+            // 只有在"当前不在主屏"时才需要把栈里的旧主屏 entry 弹掉：
+            // 此时旧 entry 一定在主屏下方，弹掉它不会把返回栈弹空，能避免出现两个 board 实例。
+            // 若已经站在主屏上（例如 Dock 主页点自己），只靠 launchSingleTop 原地更新参数即可，
+            // 既换了 filter 又不会破坏返回栈。
+            if (!isBoard) {
+                popUpTo(Routes.BOARD_PATTERN) { inclusive = true }
+            }
+            launchSingleTop = true
+        }
+    }
+
+    /**
+     * 清掉筛选。
+     *
+     * @param returnToStats true：返回键触发 —— 清筛选，并且如果本次是从统计页筛选进来的，
+     *   顺带退回统计页；false：筛选条 ✕ 触发 —— 只清筛选，留在主屏看完整列表。
+     *
+     * - 需要回统计页时，先 `popBackStack()` 弹掉带 filter 的旧主屏 entry，再建立目标页面：
+     *   这一步必须在 [navigateBoard] **之前**完成——它是相对"当前栈顶"作栈内回退；
+     *   若放到之后，栈顶已经变成新建的主屏 entry，再回退就变成"退出主屏"了。
+     * - 只有「主屏正下方的可见页面是统计页」时才回统计页：
+     *   直接开在主屏（没有从统计页进来）时，旧主屏 entry 就是栈底，弹掉它只会让应用退出。
+     */
+    fun clearFilter(returnToStats: Boolean) {
+        val fromStats = backStackEntry?.previousBackStackEntry
+            ?.destination?.route?.routePath() == Routes.STATS
+        if (returnToStats && fromStats && navController.popBackStack()) {
+            navController.navigate(Routes.STATS) {
+                popUpTo(Routes.BOARD_PATTERN) { inclusive = true }
+                launchSingleTop = true
+            }
+        } else {
+            navigateBoard(null)
+        }
+    }
+
     // 通知导航事件
     LaunchedEffect(Unit) {
         container.navEvents.collect { event ->
@@ -234,14 +302,28 @@ fun MainScaffold(
         (context as? Activity)?.moveTaskToBack(true)
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    // 根容器必须自带主题背景色：
+    // 否则页面切换过渡期间（页面 alpha < 1）会直接露出窗口背景，
+    // 配合"深色 windowBackground"就表现为「黑色半透明遮罩一闪而过」。
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(XixiTheme.colors.background)
+    ) {
 
-        // ---------------------------------------------------------- NavHost
+        // 页面切换过渡：显式声明、只做极简 alpha，杜绝任何黑色遮罩。
+        // 进入 0.95 -> 1.0、退出 1.0 -> 0.95（同长 150ms、同曲线），两页叠加期
+        // 最低合成不透明度约 0.9975，肉眼不可见；即使透底，露出的也是同色主题背景。
+        // 若设备上仍能看到黑幕：把 NavScreenTransitionDurationMs 改成 0 即完全关闭过渡。
         NavHost(
             navController = navController,
             // 引导页只展示一次：读 DataStore 决定起始路由
             startDestination = if (onboardingShown) Routes.BOARD else Routes.ONBOARDING,
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier.fillMaxSize(),
+            enterTransition = { navEnterTransition },
+            exitTransition = { navExitTransition },
+            popEnterTransition = { navEnterTransition },
+            popExitTransition = { navExitTransition }
         ) {
             composable(Routes.ONBOARDING) {
                 OnboardingScreen(
@@ -282,13 +364,9 @@ fun MainScaffold(
                     },
                     onSearchExpandedChange = { searchExpanded = it },
                     onScrollVisibilityChange = { visible -> fabVisibleByScroll = visible },
-                    // 返回键：有筛选时取消筛选并回统计页，无筛选时退出应用
-                    onNavigateStats = {
-                        navController.navigate(Routes.STATS) {
-                            popUpTo(Routes.BOARD)
-                            launchSingleTop = true
-                        }
-                    },
+                    // 返回键：清筛选（本次从统计页进来的话顺带回统计页）；
+                    // 筛选条 ✕：只清筛选，留在主屏
+                    onClearFilter = { returnToStats -> clearFilter(returnToStats) },
                     onExitApp = { (context as? Activity)?.moveTaskToBack(true) }
                 )
             }
@@ -321,19 +399,10 @@ fun MainScaffold(
 
             composable(Routes.STATS) {
                 StatsScreen(
-                    onQuadrantClick = { quadrant ->
-                        navController.navigate(Routes.board(quadrant.name)) {
-                            popUpTo(Routes.BOARD)
-                            launchSingleTop = true
-                        }
-                    },
+                    // 主屏只有路由参数一个筛选来源：点卡片即带上对应 filter 重建主屏
+                    onQuadrantClick = { quadrant -> navigateBoard(quadrant.name) },
                     onCompletedClick = { navController.navigate(Routes.ARCHIVE) },
-                    onOverdueClick = {
-                        navController.navigate(Routes.board(OVERDUE_FILTER)) {
-                            popUpTo(Routes.BOARD)
-                            launchSingleTop = true
-                        }
-                    }
+                    onOverdueClick = { navigateBoard(OVERDUE_FILTER) }
                 )
             }
 
@@ -386,14 +455,18 @@ fun MainScaffold(
                 selected = currentRoute.toDockTab(),
                 scale = animatedDockScale,
                 onSelect = { tab ->
-                    val route = tab.route()
-                    if (currentRoute.toDockTab() == tab) {
-                        // 点击当前 tab：滚动到顶部
+                    // 切换 tab 时立即确认撤销
+                    mainViewModel.clearUndo()
+                    if (tab == DockTab.BOARD) {
+                        // 主页 tab 无条件回到「完整列表」：
+                        // 带 filter 的主屏 entry 会被重建掉，避免
+                        // 「currentRoute 已是 board 但页面还停在筛选态」导致点击像没反应。
+                        navigateBoard(null)
+                    } else if (currentRoute.toDockTab() == tab) {
+                        // 点击当前非主页 tab：滚动到顶部
                         mainViewModel.requestScrollToTop()
                     } else {
-                        // 切换 tab 时立即确认撤销
-                        mainViewModel.clearUndo()
-                        navController.navigate(route) {
+                        navController.navigate(tab.route()) {
                             popUpTo(Routes.BOARD) {
                                 saveState = true
                             }

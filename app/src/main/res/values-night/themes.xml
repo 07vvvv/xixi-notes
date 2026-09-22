@@ -2,7 +2,8 @@
 <resources>
     <!-- 夜间使用同一套深色启动背景 -->
     <style name="Theme.XixiNotes" parent="android:Theme.Material.NoActionBar">
-        <item name="android:windowBackground">@color/splash_background</item>
+        <!-- 窗口背景使用夜间主题背景色，避免页面切换时露出黑色遮罩 -->
+        <item name="android:windowBackground">@color/window_background</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
         <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        窗口背景（夜间）：与 Compose 深色主题背景（XixiColorsDark.background = #0B0B0D）一致。
+        页面切换时窗口背景会短暂露出，必须跟主题背景同色，否则会出现黑色遮罩一闪而过。
+    -->
+    <color name="window_background">#0B0B0D</color>
+</resources>

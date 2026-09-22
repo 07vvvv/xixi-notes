@@ -3,7 +3,12 @@
 
     <!-- 基础主题：应用实际 UI 由 Compose 绘制，这里只提供窗口级配置 -->
     <style name="Theme.XixiNotes" parent="android:Theme.Material.NoActionBar">
-        <item name="android:windowBackground">@color/splash_background</item>
+        <!--
+            窗口背景使用主题背景色（浅色），而不是闪屏的深色：
+            页面切换过渡期间窗口背景会短暂露出，深色会表现为「黑色遮罩一闪而过」。
+            闪屏底色仍由下面的 Theme.XixiNotes.Starting 负责。
+        -->
+        <item name="android:windowBackground">@color/window_background</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
         <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>

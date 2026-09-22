@@ -1,7 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- 启动画面使用：深色背景 -->
+    <!-- 启动画面使用：深色背景（Splash 期 logo 固定深色底，深浅模式一致） -->
     <color name="splash_background">#0A0A0A</color>
+
+    <!--
+        窗口背景：必须与 Compose 主题背景（XixiColorsLight.background）保持一致。
+        页面切换时窗口背景会短暂露出，若这里是深色就会形成「黑色遮罩一闪而过」。
+    -->
+    <color name="window_background">#F5F5F7</color>
     <color name="xixi_accent">#6EE7B7</color>
     <color name="ic_launcher_background">#0A0A0A</color>
 </resources>
