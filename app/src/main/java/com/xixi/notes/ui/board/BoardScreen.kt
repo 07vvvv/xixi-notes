@@ -5,17 +5,18 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -58,11 +59,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -81,7 +84,6 @@ import com.xixi.notes.ui.components.LiqSortMenuOverlay
 import com.xixi.notes.ui.components.SeekSearchBar
 import com.xixi.notes.ui.components.SortOptionUi
 import com.xixi.notes.ui.components.TaskRow
-import com.xixi.notes.ui.components.TaskRowHeight
 import com.xixi.notes.ui.components.clickableNoRipple
 import com.xixi.notes.ui.components.colorOf
 import com.xixi.notes.ui.main.AppUiState
@@ -168,6 +170,17 @@ fun BoardScreen(
     var sortAnchorX by remember { mutableStateOf(0f) }
     var sortAnchorY by remember { mutableStateOf(0f) }
     var confirmingTaskId by remember { mutableStateOf<Long?>(null) }
+    // 正在显示的确认条在根坐标系中的区域：由 InlineConfirm 的 onGloballyPositioned 写入，
+    // 用于判断按下点是否落在确认条内部（落在内部时交给「取消 / 删除」按钮，不收起）
+    var confirmBarBounds by remember { mutableStateOf<Rect?>(null) }
+    // 列表在根坐标系中的区域：把按下点从列表局部坐标换算到根坐标系
+    var listBounds by remember { mutableStateOf<Rect?>(null) }
+
+    // 收起确认条：同时清掉记录的旧区域，避免下一次用到过期坐标
+    fun collapseConfirm() {
+        confirmingTaskId = null
+        confirmBarBounds = null
+    }
 
     // 高亮闪烁
     var highlightTaskId by remember { mutableStateOf<Long?>(null) }
@@ -254,7 +267,7 @@ fun BoardScreen(
                 ?.group?.quadrant
 
         if (quadrant != null && viewModel.uiState.value.foldedGroups[quadrant.groupKey] == true) {
-            // 先平滑展开折叠分组（animateContentSize 300ms），再滚动
+            // 先平滑展开折叠分组（expandVertically 300ms），再滚动
             viewModel.toggleFolded(quadrant)
             delay(340L)
         }
@@ -287,7 +300,7 @@ fun BoardScreen(
             state.filterActive
     ) {
         when {
-            confirmingTaskId != null -> confirmingTaskId = null
+            confirmingTaskId != null -> collapseConfirm()
             sortMenuOpen -> sortMenuOpen = false
             state.searchExpanded -> viewModel.closeSearch()
             // 有筛选：清筛选；本次是从统计页筛选进来的话，顺带退回统计页
@@ -397,15 +410,24 @@ fun BoardScreen(
                     state = listState,
                     modifier = Modifier
                         .fillMaxSize()
+                        // 记录列表区域，用于把按下点换算到根坐标系
+                        .onGloballyPositioned { coords -> listBounds = coords.boundsInRoot() }
                         .pointerInput(confirmingTaskId) {
                             if (confirmingTaskId != null) {
-                                // 点击任意位置收起 inline confirm（事件仍继续传递）
+                                // 点击确认条以外的任意位置才收起 inline confirm（事件仍继续传递）
                                 awaitEachGesture {
-                                    awaitFirstDown(
+                                    val down = awaitFirstDown(
                                         requireUnconsumed = false,
                                         pass = PointerEventPass.Initial
                                     )
-                                    confirmingTaskId = null
+                                    // 按下点落在确认条内：交给条上的「取消 / 删除」按钮处理，不收起
+                                    val bar = confirmBarBounds
+                                    val list = listBounds
+                                    val insideConfirmBar = bar != null && list != null &&
+                                        bar.contains(list.topLeft + down.position)
+                                    if (!insideConfirmBar) {
+                                        collapseConfirm()
+                                    }
                                 }
                             }
                         },
@@ -432,91 +454,104 @@ fun BoardScreen(
                             }
 
                             is BoardRow.TaskRowItem -> item(key = row.key) {
-                                // 折叠时行高平滑收缩至 0，只保留分组头部
+                                // 折叠 / 展开交给 AnimatedVisibility：行高不再固定为 68dp，
+                                // 否则 Inline Confirm 与行内撤销条会被裁掉（只剩约 2dp 可见）
                                 val isFolded = state.foldedGroups[row.quadrant.groupKey] == true
-                                val itemHeight by animateDpAsState(
-                                    targetValue = if (isFolded) 0.dp else TaskRowHeight + 8.dp,
-                                    animationSpec = tween(300, easing = GentleEasing),
-                                    label = "row_height"
-                                )
                                 val itemAlpha by animateFloatAsState(
                                     targetValue = if (isFolded) 0f else 1f,
                                     animationSpec = tween(220, easing = GentleEasing),
                                     label = "row_alpha"
                                 )
 
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(itemHeight)
-                                        .alpha(itemAlpha)
-                                        .clipToBounds()
+                                AnimatedVisibility(
+                                    visible = !isFolded,
+                                    enter = expandVertically(
+                                        animationSpec = tween(300, easing = GentleEasing),
+                                        expandFrom = Alignment.Top
+                                    ),
+                                    exit = shrinkVertically(
+                                        animationSpec = tween(300, easing = GentleEasing),
+                                        shrinkTowards = Alignment.Top
+                                    )
                                 ) {
-                                    TaskRow(
-                                        task = row.task,
-                                        quadrant = row.quadrant,
-                                        highlightAlpha = if (highlightTaskId == row.task.id) {
-                                            highlightAlpha
-                                        } else {
-                                            0f
-                                        },
-                                        // 左圆圈：完成 / 取消完成（3 秒内可撤销）
-                                        onToggleCheck = {
-                                            mainViewModel.toggleCheck(row.task)
-                                        },
-                                        // 右叉号：非重要直接删除 + 撤销，重要先原地确认
-                                        onDelete = {
-                                            if (row.task.isImportant) {
-                                                confirmingTaskId = row.task.id
-                                            } else {
-                                                mainViewModel.deleteWithUndo(row.task)
-                                            }
-                                        },
-                                        onClick = {
-                                            confirmingTaskId = null
-                                            onOpenEditor(row.task.id)
-                                        },
-                                        onLongPress = {
-                                            // 长按保留为删除快捷入口，规则与叉号一致
-                                            if (row.task.isImportant) {
-                                                confirmingTaskId = row.task.id
-                                            } else {
-                                                mainViewModel.deleteWithUndo(row.task)
-                                            }
-                                        }
-                                    )
-
-                                    // 重要事项长按的 Inline Confirm
-                                    InlineConfirm(
-                                        visible = confirmingTaskId == row.task.id,
-                                        title = stringResource(R.string.confirm_delete_title),
-                                        message = stringResource(R.string.confirm_delete_message),
-                                        confirmLabel = stringResource(R.string.action_delete),
-                                        cancelLabel = stringResource(R.string.action_cancel),
-                                        onConfirm = {
-                                            confirmingTaskId = null
-                                            viewModel.deleteNow(row.task)
-                                        },
-                                        onCancel = { confirmingTaskId = null }
-                                    )
-
-                                    // 撤销条（紧贴该行下方）：完成 / 取消完成的撤销
-                                    AnimatedVisibility(
-                                        visible = undo != null &&
-                                            undo.checkUndoTaskId == row.task.id,
-                                        enter = fadeIn(tween(180, easing = GentleEasing)),
-                                        exit = fadeOut(tween(140, easing = GentleEasing))
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .alpha(itemAlpha)
                                     ) {
-                                        UndoInline(
-                                            message = undo?.message.orEmpty(),
-                                            onUndo = {
-                                                mainViewModel.undo(
-                                                    onCancelImageDeletion = { taskId ->
-                                                        viewModel.deleteTaskImages(taskId)
-                                                    }
-                                                )
+                                        TaskRow(
+                                            task = row.task,
+                                            quadrant = row.quadrant,
+                                            highlightAlpha = if (highlightTaskId == row.task.id) {
+                                                highlightAlpha
+                                            } else {
+                                                0f
+                                            },
+                                            // 左圆圈：完成 / 取消完成（3 秒内可撤销）
+                                            onToggleCheck = {
+                                                mainViewModel.toggleCheck(row.task)
+                                            },
+                                            // 右叉号：非重要直接删除 + 撤销，重要先原地确认
+                                            onDelete = {
+                                                if (row.task.isImportant) {
+                                                    confirmingTaskId = row.task.id
+                                                } else {
+                                                    mainViewModel.deleteWithUndo(row.task)
+                                                }
+                                            },
+                                            onClick = {
+                                                collapseConfirm()
+                                                onOpenEditor(row.task.id)
+                                            },
+                                            onLongPress = {
+                                                // 长按保留为删除快捷入口，规则与叉号一致
+                                                if (row.task.isImportant) {
+                                                    confirmingTaskId = row.task.id
+                                                } else {
+                                                    mainViewModel.deleteWithUndo(row.task)
+                                                }
                                             }
                                         )
+
+                                        // 重要事项点叉号 / 长按后的 Inline Confirm
+                                        InlineConfirm(
+                                            visible = confirmingTaskId == row.task.id,
+                                            title = stringResource(R.string.confirm_delete_title),
+                                            message = stringResource(R.string.confirm_delete_message),
+                                            confirmLabel = stringResource(R.string.action_delete),
+                                            cancelLabel = stringResource(R.string.action_cancel),
+                                            onConfirm = {
+                                                collapseConfirm()
+                                                viewModel.deleteNow(row.task)
+                                            },
+                                            onCancel = { collapseConfirm() },
+                                            // 记录确认条区域：「按在条外才收起」需要用它判断
+                                            // 只有当前显示的那一条才写入，避免隐藏的行覆盖成空区域
+                                            modifier = Modifier.onGloballyPositioned { coords ->
+                                                if (confirmingTaskId == row.task.id) {
+                                                    confirmBarBounds = coords.boundsInRoot()
+                                                }
+                                            }
+                                        )
+
+                                        // 撤销条（紧贴该行下方）：完成 / 取消完成的撤销
+                                        AnimatedVisibility(
+                                            visible = undo != null &&
+                                                undo.checkUndoTaskId == row.task.id,
+                                            enter = fadeIn(tween(180, easing = GentleEasing)),
+                                            exit = fadeOut(tween(140, easing = GentleEasing))
+                                        ) {
+                                            UndoInline(
+                                                message = undo?.message.orEmpty(),
+                                                onUndo = {
+                                                    mainViewModel.undo(
+                                                        onCancelImageDeletion = { taskId ->
+                                                            viewModel.deleteTaskImages(taskId)
+                                                        }
+                                                    )
+                                                }
+                                            )
+                                        }
                                     }
                                 }
                             }
