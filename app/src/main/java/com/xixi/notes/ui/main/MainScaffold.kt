@@ -244,7 +244,8 @@ fun MainScaffold(
      *   直接开在主屏（没有从统计页进来）时，旧主屏 entry 就是栈底，弹掉它只会让应用退出。
      */
     fun clearFilter(returnToStats: Boolean) {
-        val fromStats = backStackEntry?.previousBackStackEntry
+        // previousBackStackEntry 是 NavController 的属性（跳过 NavGraph 后的上一个可见页面）
+        val fromStats = navController.previousBackStackEntry
             ?.destination?.route?.routePath() == Routes.STATS
         if (returnToStats && fromStats && navController.popBackStack()) {
             navController.navigate(Routes.STATS) {
