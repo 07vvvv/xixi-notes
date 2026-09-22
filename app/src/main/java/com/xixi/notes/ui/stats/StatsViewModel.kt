@@ -23,7 +23,8 @@ data class StatsUiState(
     val overdue: Int = 0,
     val totalTasks: Int = 0
 ) {
-    val isEmpty: Boolean get() = totalTasks == 0
+    // 全部任务都已完成时，「总完成 / 本周完成 / 逾期」仍需展示，所以不能只看未完成任务数
+    val isEmpty: Boolean get() = totalTasks == 0 && totalCompleted == 0
 }
 
 class StatsViewModel(private val repository: TaskRepository) : ViewModel() {
@@ -52,8 +53,11 @@ class StatsViewModel(private val repository: TaskRepository) : ViewModel() {
     )
 
     private fun compute(tasks: List<TaskEntity>, now: Long): StatsUiState {
+        // 未完成（未归档）任务：任务总数与各象限数量只统计这部分，
+        // 且始终取全部未完成任务，不跟随主屏的筛选状态变化
+        val active = tasks.filter { !it.isCheckedOff }
         val counts = Quadrant.ordered.associateWith { quadrant ->
-            tasks.count { Quadrant.of(it) == quadrant }
+            active.count { Quadrant.of(it) == quadrant }
         }
         val completed = tasks.filter { it.isCheckedOff }
         return StatsUiState(
@@ -64,7 +68,7 @@ class StatsViewModel(private val repository: TaskRepository) : ViewModel() {
             overdue = tasks.count {
                 !it.isCheckedOff && it.dueDate != null && it.dueDate < now
             },
-            totalTasks = tasks.size
+            totalTasks = active.size
         )
     }
 
