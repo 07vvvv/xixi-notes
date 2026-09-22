@@ -79,10 +79,6 @@ class AppPreferences(private val dataStore: DataStore<Preferences>) {
         )
     }
 
-    /** 读取引导页是否已展示（启动时决定起始路由） */
-    suspend fun isOnboardingShown(): Boolean =
-        dataStore.data.map { it[ONBOARDING_SHOWN] ?: false }.first()
-
     /** 标记引导页已展示（写完再导航，避免每次启动重复弹出） */
     suspend fun setOnboardingShown(shown: Boolean) {
         dataStore.edit { it[ONBOARDING_SHOWN] = shown }
