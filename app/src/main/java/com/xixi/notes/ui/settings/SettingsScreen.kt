@@ -24,7 +24,6 @@ import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -41,7 +40,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.xixi.notes.BuildConfig
@@ -59,6 +57,8 @@ import com.xixi.notes.ui.theme.Spacing
 import com.xixi.notes.ui.theme.ThemeMode
 import com.xixi.notes.ui.theme.XixiElevation
 import com.xixi.notes.ui.theme.XixiItemShape
+import com.xixi.notes.ui.theme.XixiPillShape
+import com.xixi.notes.ui.theme.XixiTextStyles
 import com.xixi.notes.ui.theme.XixiThumbnailShape
 import com.xixi.notes.ui.theme.XixiTheme
 import com.xixi.notes.ui.util.GentleEasing
@@ -120,9 +120,7 @@ fun SettingsScreen(
                 Text(
                     text = stringResource(R.string.settings_title),
                     color = XixiTheme.colors.textPrimary,
-                    fontSize = 26.sp,
-                    letterSpacing = 0.3.sp,
-                    fontWeight = FontWeight.Bold
+                    style = XixiTextStyles.pageTitle
                 )
             }
 
@@ -285,17 +283,15 @@ fun SettingsScreen(
                         Text(
                             text = stringResource(R.string.settings_onboarding),
                             color = XixiTheme.colors.textPrimary,
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Medium,
-                            letterSpacing = 0.3.sp
+                            style = XixiTextStyles.rowTitle,
+                            fontWeight = FontWeight.Medium
                         )
                     }
                     Spacer(modifier = Modifier.height(Spacing.sm))
                     Text(
                         text = stringResource(R.string.settings_version, BuildConfig.VERSION_NAME),
                         color = XixiTheme.colors.textTertiary,
-                        fontSize = 12.sp,
-                        letterSpacing = 0.3.sp
+                        style = XixiTextStyles.minor
                     )
                 }
             }
@@ -333,9 +329,8 @@ private fun SectionTitle(text: String) {
     Text(
         text = text,
         color = XixiTheme.colors.textSecondary,
-        fontSize = 12.sp,
+        style = XixiTextStyles.minor,
         fontWeight = FontWeight.Medium,
-        letterSpacing = 0.3.sp,
         modifier = Modifier.padding(start = Spacing.xs, bottom = Spacing.sm)
     )
 }
@@ -365,17 +360,15 @@ private fun SettingLabel(title: String, description: String? = null) {
         Text(
             text = title,
             color = XixiTheme.colors.textPrimary,
-            fontSize = 15.sp,
-            fontWeight = FontWeight.Medium,
-            letterSpacing = 0.3.sp
+            style = XixiTextStyles.rowTitle,
+            fontWeight = FontWeight.Medium
         )
         if (description != null) {
             Spacer(modifier = Modifier.height(Spacing.xs))
             Text(
                 text = description,
                 color = XixiTheme.colors.textSecondary,
-                fontSize = 12.sp,
-                letterSpacing = 0.3.sp
+                style = XixiTextStyles.minor
             )
         }
     }
@@ -403,16 +396,14 @@ private fun ExpandableHeader(
             Text(
                 text = title,
                 color = XixiTheme.colors.textPrimary,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Medium,
-                letterSpacing = 0.3.sp
+                style = XixiTextStyles.rowTitle,
+                fontWeight = FontWeight.Medium
             )
             Spacer(modifier = Modifier.height(3.dp))
             Text(
                 text = value,
                 color = XixiTheme.colors.accent,
-                fontSize = 13.sp,
-                letterSpacing = 0.3.sp
+                style = XixiTextStyles.caption
             )
         }
         Box(
@@ -446,9 +437,8 @@ private fun ThemeModeCard(
                 Text(
                     text = stringResource(R.string.settings_theme_mode),
                     color = XixiTheme.colors.textPrimary,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Medium,
-                    letterSpacing = 0.3.sp
+                    style = XixiTextStyles.rowTitle,
+                    fontWeight = FontWeight.Medium
                 )
                 Spacer(modifier = Modifier.height(3.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -469,8 +459,7 @@ private fun ThemeModeCard(
                             }
                         ),
                         color = XixiTheme.colors.accent,
-                        fontSize = 13.sp,
-                        letterSpacing = 0.3.sp
+                        style = XixiTextStyles.caption
                     )
                 }
             }
@@ -532,7 +521,7 @@ private fun ExpandOptionRow(
             modifier = Modifier
                 .width(3.dp)
                 .height(18.dp)
-                .clip(RoundedCornerShape(percent = 50))
+                .clip(XixiPillShape)
                 .background(if (selected) accent else Color.Transparent)
         )
         Spacer(modifier = Modifier.width(Spacing.md))
@@ -540,8 +529,7 @@ private fun ExpandOptionRow(
             text = label,
             color = if (selected) XixiTheme.colors.textPrimary
             else XixiTheme.colors.textSecondary,
-            fontSize = 14.sp,
-            letterSpacing = 0.3.sp,
+            style = XixiTextStyles.body,
             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
         )
     }
@@ -583,8 +571,7 @@ private fun <T> SegmentedOptions(
                     text = label,
                     color = if (isSelected) XixiTheme.colors.textPrimary
                     else XixiTheme.colors.textSecondary,
-                    fontSize = 12.sp,
-                    letterSpacing = 0.3.sp,
+                    style = XixiTextStyles.minor,
                     fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
                 )
             }
@@ -615,8 +602,7 @@ private fun MinuteChip(
         Text(
             text = stringResource(R.string.settings_default_reminder_value, minutes),
             color = if (selected) XixiTheme.colors.onAccent else XixiTheme.colors.textSecondary,
-            fontSize = 12.sp,
-            letterSpacing = 0.3.sp,
+            style = XixiTextStyles.minor,
             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
             maxLines = 1
         )
@@ -638,9 +624,8 @@ private fun PermissionRow(
             Text(
                 text = title,
                 color = XixiTheme.colors.textPrimary,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Medium,
-                letterSpacing = 0.3.sp
+                style = XixiTextStyles.rowTitle,
+                fontWeight = FontWeight.Medium
             )
             Spacer(modifier = Modifier.height(3.dp))
             Text(
@@ -650,8 +635,7 @@ private fun PermissionRow(
                 ),
                 // 已开启用成功绿，未开启用危险色
                 color = if (granted) XixiTheme.colors.success else XixiTheme.colors.danger,
-                fontSize = 12.sp,
-                letterSpacing = 0.3.sp
+                style = XixiTextStyles.minor
             )
         }
         if (!granted) {
@@ -665,8 +649,7 @@ private fun PermissionRow(
                 Text(
                     text = stringResource(R.string.settings_permission_open),
                     color = XixiTheme.colors.onAccent,
-                    fontSize = 12.sp,
-                    letterSpacing = 0.3.sp,
+                    style = XixiTextStyles.minor,
                     fontWeight = FontWeight.SemiBold
                 )
             }

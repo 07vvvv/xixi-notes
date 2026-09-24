@@ -73,14 +73,12 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -92,6 +90,7 @@ import com.xixi.notes.ui.components.InlineConfirm
 import com.xixi.notes.ui.components.clickableNoRipple
 import com.xixi.notes.ui.theme.Spacing
 import com.xixi.notes.ui.theme.XixiElevation
+import com.xixi.notes.ui.theme.XixiTextStyles
 import com.xixi.notes.ui.theme.XixiTheme
 import com.xixi.notes.ui.util.GentleEasing
 import com.xixi.notes.ui.util.imageModel
@@ -264,8 +263,7 @@ fun DetailScreen(
                     Text(
                         text = stringResource(R.string.action_cancel),
                         color = XixiTheme.colors.textPrimary,
-                        fontSize = 15.sp,
-                        letterSpacing = 0.3.sp
+                        style = XixiTextStyles.rowTitle
                     )
                 }
 
@@ -276,9 +274,7 @@ fun DetailScreen(
                         if (state.isNew) R.string.editor_title_new else R.string.editor_title_edit
                     ),
                     color = XixiTheme.colors.textPrimary,
-                    fontSize = 16.sp,
-                    letterSpacing = 0.3.sp,
-                    fontWeight = FontWeight.SemiBold
+                    style = XixiTextStyles.subtitle
                 )
 
                 Spacer(modifier = Modifier.weight(1f))
@@ -300,8 +296,7 @@ fun DetailScreen(
                     Text(
                         text = stringResource(R.string.action_save),
                         color = XixiTheme.colors.accent.copy(alpha = saveAlpha),
-                        fontSize = 15.sp,
-                        letterSpacing = 0.3.sp,
+                        style = XixiTextStyles.rowTitle,
                         fontWeight = FontWeight.SemiBold
                     )
                 }
@@ -323,10 +318,8 @@ fun DetailScreen(
                     BasicTextField(
                         value = state.title,
                         onValueChange = viewModel::setTitle,
-                        textStyle = TextStyle(
-                            color = XixiTheme.colors.textPrimary,
-                            fontSize = 17.sp,
-                            letterSpacing = 0.3.sp
+                        textStyle = XixiTextStyles.inputTitle.copy(
+                            color = XixiTheme.colors.textPrimary
                         ),
                         cursorBrush = SolidColor(XixiTheme.colors.accent),
                         keyboardOptions = KeyboardOptions(
@@ -339,8 +332,7 @@ fun DetailScreen(
                                 Text(
                                     text = stringResource(R.string.editor_field_title_placeholder),
                                     color = XixiTheme.colors.textTertiary,
-                                    fontSize = 17.sp,
-                                    letterSpacing = 0.3.sp
+                                    style = XixiTextStyles.inputTitle
                                 )
                             }
                             inner()
@@ -362,11 +354,8 @@ fun DetailScreen(
                     BasicTextField(
                         value = state.description,
                         onValueChange = viewModel::setDescription,
-                        textStyle = TextStyle(
-                            color = XixiTheme.colors.textPrimary,
-                            fontSize = 14.sp,
-                            lineHeight = 22.sp,
-                            letterSpacing = 0.3.sp
+                        textStyle = XixiTextStyles.bodyReading.copy(
+                            color = XixiTheme.colors.textPrimary
                         ),
                         cursorBrush = SolidColor(XixiTheme.colors.accent),
                         keyboardOptions = KeyboardOptions(
@@ -381,8 +370,7 @@ fun DetailScreen(
                                         R.string.editor_field_description_placeholder
                                     ),
                                     color = XixiTheme.colors.textTertiary,
-                                    fontSize = 14.sp,
-                                    letterSpacing = 0.3.sp
+                                    style = XixiTextStyles.bodyReading
                                 )
                             }
                             inner()
@@ -483,8 +471,7 @@ fun DetailScreen(
                         Text(
                             text = stringResource(R.string.editor_image_limit),
                             color = XixiTheme.colors.textTertiary,
-                            fontSize = 12.sp,
-                            letterSpacing = 0.3.sp
+                            style = XixiTextStyles.minor
                         )
                     }
                     Spacer(modifier = Modifier.height(Spacing.md))
@@ -529,8 +516,7 @@ fun DetailScreen(
                                             state.compressionTotal
                                         ),
                                         color = XixiTheme.colors.textPrimary,
-                                        fontSize = 12.sp,
-                                        letterSpacing = 0.3.sp
+                                        style = XixiTextStyles.minor
                                     )
                                 }
                             }
@@ -615,8 +601,7 @@ fun DetailScreen(
                         if (state.isNew) R.string.action_cancel else R.string.editor_delete_action
                     ),
                     color = XixiTheme.colors.danger,
-                    fontSize = 15.sp,
-                    letterSpacing = 0.3.sp,
+                    style = XixiTextStyles.rowTitle,
                     fontWeight = FontWeight.SemiBold
                 )
             }
@@ -665,8 +650,7 @@ fun DetailScreen(
                 Text(
                     text = message.orEmpty(),
                     color = XixiTheme.colors.textPrimary,
-                    fontSize = 13.sp,
-                    letterSpacing = 0.3.sp
+                    style = XixiTextStyles.caption
                 )
             }
         }
@@ -880,9 +864,8 @@ private fun FieldLabel(
     Text(
         text = text,
         color = XixiTheme.colors.textSecondary,
-        fontSize = 12.sp,
+        style = XixiTextStyles.minor,
         fontWeight = FontWeight.Medium,
-        letterSpacing = 0.3.sp,
         modifier = modifier
     )
 }
@@ -923,8 +906,7 @@ private fun TagChip(
         Text(
             text = label,
             color = if (selected) color else XixiTheme.colors.textSecondary,
-            fontSize = 13.sp,
-            letterSpacing = 0.3.sp,
+            style = XixiTextStyles.caption,
             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
         )
     }
@@ -958,8 +940,7 @@ private fun PickerRow(
         Text(
             text = label,
             color = XixiTheme.colors.textPrimary,
-            fontSize = 15.sp,
-            letterSpacing = 0.3.sp
+            style = XixiTextStyles.rowTitle
         )
         Spacer(modifier = Modifier.weight(1f))
         Text(
@@ -967,8 +948,7 @@ private fun PickerRow(
             // 已设置为强调色，未设置为辅助色
             color = if (value == notSet) XixiTheme.colors.textTertiary
             else XixiTheme.colors.accent,
-            fontSize = 13.sp,
-            letterSpacing = 0.3.sp,
+            style = XixiTextStyles.caption,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
@@ -1066,8 +1046,7 @@ private fun ImageStrip(
                     Text(
                         text = stringResource(R.string.action_add_image),
                         color = XixiTheme.colors.textSecondary,
-                        fontSize = 11.sp,
-                        letterSpacing = 0.3.sp
+                        style = XixiTextStyles.micro
                     )
                 }
             }
@@ -1116,8 +1095,7 @@ private fun MenuRow(
         Text(
             text = label,
             color = XixiTheme.colors.textPrimary,
-            fontSize = 14.sp,
-            letterSpacing = 0.3.sp
+            style = XixiTextStyles.body
         )
     }
 }

@@ -6,6 +6,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -36,16 +37,17 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.lerp
 import com.xixi.notes.R
 import com.xixi.notes.ui.components.clickableNoRipple
 import com.xixi.notes.ui.theme.Spacing
 import com.xixi.notes.ui.theme.XixiElevation
+import com.xixi.notes.ui.theme.XixiTextStyles
 import com.xixi.notes.ui.theme.XixiTheme
 import com.xixi.notes.ui.util.GentleEasing
 import kotlinx.coroutines.launch
@@ -124,8 +126,7 @@ fun OnboardingScreen(
             Text(
                 text = stringResource(R.string.onboarding_skip),
                 color = XixiTheme.colors.textSecondary,
-                fontSize = 13.sp,
-                letterSpacing = 0.3.sp
+                style = XixiTextStyles.caption
             )
         }
 
@@ -133,6 +134,15 @@ fun OnboardingScreen(
             modifier = Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            // 品牌位：应用图标（与桌面图标 / 启动画面同一标记）
+            Image(
+                painter = painterResource(R.drawable.ic_splash_logo),
+                contentDescription = null,
+                modifier = Modifier
+                    .padding(top = Spacing.lg)
+                    .size(48.dp)
+            )
+
             HorizontalPager(
                 state = pagerState,
                 modifier = Modifier
@@ -161,18 +171,14 @@ fun OnboardingScreen(
                     Text(
                         text = stringResource(pages[page].titleRes),
                         color = XixiTheme.colors.textPrimary,
-                        fontSize = 26.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 0.3.sp,
+                        style = XixiTextStyles.pageTitle,
                         textAlign = TextAlign.Center
                     )
                     Spacer(modifier = Modifier.height(Spacing.md))
                     Text(
                         text = stringResource(pages[page].bodyRes),
                         color = XixiTheme.colors.textSecondary,
-                        fontSize = 14.sp,
-                        lineHeight = 23.sp,
-                        letterSpacing = 0.3.sp,
+                        style = XixiTextStyles.bodyReading,
                         textAlign = TextAlign.Center
                     )
                 }
@@ -228,9 +234,8 @@ fun OnboardingScreen(
                         if (isLastPage) R.string.onboarding_start else R.string.onboarding_next
                     ),
                     color = XixiTheme.colors.onAccent,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    letterSpacing = 0.3.sp
+                    style = XixiTextStyles.rowTitle,
+                    fontWeight = FontWeight.SemiBold
                 )
             }
         }

@@ -70,7 +70,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.xixi.notes.R
@@ -93,6 +92,7 @@ import com.xixi.notes.ui.main.OVERDUE_FILTER
 import com.xixi.notes.ui.main.UndoSlot
 import com.xixi.notes.ui.theme.Spacing
 import com.xixi.notes.ui.theme.XixiElevation
+import com.xixi.notes.ui.theme.XixiTextStyles
 import com.xixi.notes.ui.theme.XixiTheme
 import com.xixi.notes.ui.theme.XixiThumbnailShape
 import com.xixi.notes.ui.util.GentleEasing
@@ -696,9 +696,8 @@ private fun FilterChipRow(
             Text(
                 text = label,
                 color = XixiTheme.colors.textPrimary,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Medium,
-                letterSpacing = 0.3.sp
+                style = XixiTextStyles.minor,
+                fontWeight = FontWeight.Medium
             )
             Spacer(modifier = Modifier.width(Spacing.xs))
             Box(
@@ -738,8 +737,7 @@ private fun UndoInline(
         Text(
             text = message,
             color = XixiTheme.colors.textSecondary,
-            fontSize = 13.sp,
-            letterSpacing = 0.3.sp,
+            style = XixiTextStyles.caption,
             maxLines = 1,
             modifier = Modifier.weight(1f)
         )
@@ -753,9 +751,8 @@ private fun UndoInline(
                 text = stringResource(R.string.action_undo),
                 // 操作类文字统一使用强调色
                 color = XixiTheme.colors.accent,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.SemiBold,
-                letterSpacing = 0.3.sp
+                style = XixiTextStyles.caption,
+                fontWeight = FontWeight.SemiBold
             )
         }
     }
@@ -780,8 +777,7 @@ private fun ToastInline(
         Text(
             text = message,
             color = XixiTheme.colors.textPrimary,
-            fontSize = 13.sp,
-            letterSpacing = 0.3.sp
+            style = XixiTextStyles.caption
         )
     }
 }
@@ -855,8 +851,7 @@ private fun EmptyBoard(
                     if (searching) R.string.search_no_result else R.string.board_empty_title
                 ),
                 color = XixiTheme.colors.textSecondary,
-                fontSize = 15.sp,
-                letterSpacing = 0.3.sp,
+                style = XixiTextStyles.rowTitle,
                 textAlign = TextAlign.Center
             )
             if (searching) {
@@ -872,8 +867,7 @@ private fun EmptyBoard(
                     Text(
                         text = stringResource(R.string.action_clear_search),
                         color = XixiTheme.colors.textPrimary,
-                        fontSize = 13.sp,
-                        letterSpacing = 0.3.sp
+                        style = XixiTextStyles.caption
                     )
                 }
             }

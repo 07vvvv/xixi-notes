@@ -22,7 +22,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -38,12 +37,11 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.xixi.notes.R
+import com.xixi.notes.ui.theme.XixiTextStyles
 import com.xixi.notes.ui.theme.XixiTheme
 import com.xixi.notes.ui.util.GentleEasing
 
@@ -148,11 +146,8 @@ fun SeekSearchBar(
                 value = value,
                 onValueChange = onValueChange,
                 singleLine = true,
-                textStyle = LocalTextStyle.current.copy(
-                    color = XixiTheme.colors.textPrimary,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Normal,
-                    letterSpacing = 0.3.sp
+                textStyle = XixiTextStyles.rowTitle.copy(
+                    color = XixiTheme.colors.textPrimary
                 ),
                 cursorBrush = SolidColor(XixiTheme.colors.accent),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
@@ -172,8 +167,7 @@ fun SeekSearchBar(
                 text = stringResource(R.string.search_placeholder),
                 // 辅助信息：更小更淡，使用三级文字色
                 color = XixiTheme.colors.textTertiary.copy(alpha = placeholderAlpha),
-                fontSize = 14.sp,
-                letterSpacing = 0.3.sp,
+                style = XixiTextStyles.body,
                 modifier = Modifier.padding(start = 42.dp)
             )
         }

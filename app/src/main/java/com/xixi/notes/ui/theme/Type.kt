@@ -73,8 +73,12 @@ val XixiTypography = Typography(
 )
 
 /**
- * 额外文本样式：统计数字（大且粗，负字距更紧凑）。
- * 统计页核心数字、2x2 网格数字、周完成 / 总完成 / 逾期数字统一使用。
+ * 额外文本样式。
+ *
+ * - 统计数字：大且粗，负字距更紧凑
+ * - 通用字阶 token（pageTitle / inputTitle / subtitle / rowTitle / body /
+ *   bodyReading / caption / minor / micro）：全应用唯一的字号来源，
+ *   页面不得再写 `fontSize = X.sp` 这类魔法值；字重与颜色在调用处按语义覆盖
  */
 object XixiTextStyles {
     val statNumber = TextStyle(
@@ -92,6 +96,106 @@ object XixiTextStyles {
         fontWeight = FontWeight.Bold,
         letterSpacing = (-0.5).sp,
         lineHeight = 32.sp,
+        platformStyle = PlatformTextStyle(includeFontPadding = false),
+        lineHeightStyle = CenteredLineHeightStyle
+    )
+
+    /** 行内统计数字（单行卡片右侧） */
+    val statNumberLine = TextStyle(
+        fontSize = 24.sp,
+        fontWeight = FontWeight.Bold,
+        letterSpacing = (-0.5).sp,
+        lineHeight = 28.sp,
+        platformStyle = PlatformTextStyle(includeFontPadding = false),
+        lineHeightStyle = CenteredLineHeightStyle
+    )
+
+    /** 页面大标题（26sp Bold）：统计 / 设置 / 归档顶栏、引导页标题 */
+    val pageTitle = TextStyle(
+        fontSize = 26.sp,
+        fontWeight = FontWeight.Bold,
+        letterSpacing = LETTER_SPACING.sp,
+        lineHeight = 35.sp,
+        platformStyle = PlatformTextStyle(includeFontPadding = false),
+        lineHeightStyle = CenteredLineHeightStyle
+    )
+
+    /** 大号输入文本（17sp）：编辑页标题输入框与占位符 */
+    val inputTitle = TextStyle(
+        fontSize = 17.sp,
+        fontWeight = FontWeight.Normal,
+        letterSpacing = LETTER_SPACING.sp,
+        lineHeight = 23.sp,
+        platformStyle = PlatformTextStyle(includeFontPadding = false),
+        lineHeightStyle = CenteredLineHeightStyle
+    )
+
+    /** 强调小标题（16sp SemiBold）：编辑页顶栏标题、空状态标题 */
+    val subtitle = TextStyle(
+        fontSize = 16.sp,
+        fontWeight = FontWeight.SemiBold,
+        letterSpacing = LETTER_SPACING.sp,
+        lineHeight = 22.sp,
+        platformStyle = PlatformTextStyle(includeFontPadding = false),
+        lineHeightStyle = CenteredLineHeightStyle
+    )
+
+    /** 行标题（15sp）：任务标题、设置行标题、按钮文字（字重按调用处覆盖） */
+    val rowTitle = TextStyle(
+        fontSize = 15.sp,
+        fontWeight = FontWeight.Normal,
+        letterSpacing = LETTER_SPACING.sp,
+        lineHeight = 20.sp,
+        platformStyle = PlatformTextStyle(includeFontPadding = false),
+        lineHeightStyle = CenteredLineHeightStyle
+    )
+
+    /** 正文（14sp）：菜单项、说明文字（字重按调用处覆盖） */
+    val body = TextStyle(
+        fontSize = 14.sp,
+        fontWeight = FontWeight.Normal,
+        letterSpacing = LETTER_SPACING.sp,
+        lineHeight = 19.sp,
+        platformStyle = PlatformTextStyle(includeFontPadding = false),
+        lineHeightStyle = CenteredLineHeightStyle
+    )
+
+    /** 多行阅读文本（14sp，行高更松）：编辑页描述、引导页正文 */
+    val bodyReading = TextStyle(
+        fontSize = 14.sp,
+        fontWeight = FontWeight.Normal,
+        letterSpacing = LETTER_SPACING.sp,
+        lineHeight = 23.sp,
+        platformStyle = PlatformTextStyle(includeFontPadding = false),
+        lineHeightStyle = CenteredLineHeightStyle
+    )
+
+    /** 辅助说明（13sp）：提示条、次要信息、小按钮 */
+    val caption = TextStyle(
+        fontSize = 13.sp,
+        fontWeight = FontWeight.Normal,
+        letterSpacing = LETTER_SPACING.sp,
+        lineHeight = 18.sp,
+        platformStyle = PlatformTextStyle(includeFontPadding = false),
+        lineHeightStyle = CenteredLineHeightStyle
+    )
+
+    /** 次要小字（12sp）：时间戳、状态值、徽标说明（字重按调用处覆盖） */
+    val minor = TextStyle(
+        fontSize = 12.sp,
+        fontWeight = FontWeight.Normal,
+        letterSpacing = LETTER_SPACING.sp,
+        lineHeight = 16.sp,
+        platformStyle = PlatformTextStyle(includeFontPadding = false),
+        lineHeightStyle = CenteredLineHeightStyle
+    )
+
+    /** 微标签（11sp）：徽章、扇区标签、图片角标文字（字重按调用处覆盖） */
+    val micro = TextStyle(
+        fontSize = 11.sp,
+        fontWeight = FontWeight.Normal,
+        letterSpacing = LETTER_SPACING.sp,
+        lineHeight = 15.sp,
         platformStyle = PlatformTextStyle(includeFontPadding = false),
         lineHeightStyle = CenteredLineHeightStyle
     )

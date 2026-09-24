@@ -42,13 +42,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import com.xixi.notes.R
 import com.xixi.notes.ui.board.Quadrant
 import com.xixi.notes.ui.theme.OnAccentDark
 import com.xixi.notes.ui.theme.QuadrantColors
 import com.xixi.notes.ui.theme.XixiElevation
+import com.xixi.notes.ui.theme.XixiTextStyles
 import com.xixi.notes.ui.theme.XixiTheme
 import com.xixi.notes.ui.util.GentleEasing
 import kotlinx.coroutines.delay
@@ -283,9 +283,8 @@ fun RadialMenuHost(
                         text = stringResource(sector.quadrant.shortTitleRes),
                         // 四象限色均为中高明度，统一用深色前景保证对比度
                         color = OnAccentDark,
-                        fontSize = 11.sp,
+                        style = XixiTextStyles.micro,
                         fontWeight = FontWeight.SemiBold,
-                        letterSpacing = 0.3.sp,
                         textAlign = TextAlign.Center,
                         maxLines = 1
                     )

@@ -26,8 +26,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.xixi.notes.ui.theme.Spacing
+import com.xixi.notes.ui.theme.XixiTextStyles
 import com.xixi.notes.ui.theme.XixiTheme
 import com.xixi.notes.ui.util.GentleEasing
 
@@ -85,16 +85,14 @@ fun InlineConfirm(
                 Text(
                     text = title,
                     color = XixiTheme.colors.onDangerContainer,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    letterSpacing = 0.3.sp
+                    style = XixiTextStyles.rowTitle,
+                    fontWeight = FontWeight.SemiBold
                 )
                 Spacer(modifier = Modifier.height(Spacing.xs))
                 Text(
                     text = message,
                     color = XixiTheme.colors.textSecondary,
-                    fontSize = 12.sp,
-                    letterSpacing = 0.3.sp
+                    style = XixiTextStyles.minor
                 )
                 Spacer(modifier = Modifier.height(Spacing.md))
                 Row(
@@ -142,8 +140,7 @@ private fun InlineConfirmButton(
             // 危险色实心上用危险容器的前景色保证对比度
             color = if (emphasized) XixiTheme.colors.onDangerContainer
             else XixiTheme.colors.textPrimary,
-            fontSize = 13.sp,
-            letterSpacing = 0.3.sp,
+            style = XixiTextStyles.caption,
             fontWeight = if (emphasized) FontWeight.SemiBold else FontWeight.Normal
         )
     }

@@ -42,10 +42,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import com.xixi.notes.R
+import com.xixi.notes.ui.theme.XixiPillShape
 import com.xixi.notes.ui.theme.XixiRadius
+import com.xixi.notes.ui.theme.XixiTextStyles
 import com.xixi.notes.ui.theme.XixiTheme
 import com.xixi.notes.ui.util.GentleEasing
 import com.xixi.notes.ui.util.LIQ_EXPAND_DURATION
@@ -265,7 +266,7 @@ fun LiqSortMenuOverlay(
                                 .padding(start = 12.dp)
                                 .width(3.dp)
                                 .height(22.dp)
-                                .clip(RoundedCornerShape(percent = 50))
+                                .clip(XixiPillShape)
                                 .background(
                                     if (option.selected) XixiTheme.colors.accent
                                     else Color.Transparent
@@ -274,8 +275,7 @@ fun LiqSortMenuOverlay(
                         Text(
                             text = option.label,
                             color = textColor.copy(alpha = 0.35f + 0.65f * itemProgress),
-                            fontSize = 14.sp,
-                            letterSpacing = 0.3.sp,
+                            style = XixiTextStyles.body,
                             fontWeight = if (option.selected) FontWeight.Bold else FontWeight.Normal,
                             modifier = Modifier.padding(start = 12.dp)
                         )

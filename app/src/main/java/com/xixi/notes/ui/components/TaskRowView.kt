@@ -19,7 +19,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
@@ -46,13 +45,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.xixi.notes.R
 import com.xixi.notes.data.local.TaskEntity
 import com.xixi.notes.ui.board.Quadrant
 import com.xixi.notes.ui.theme.Spacing
 import com.xixi.notes.ui.theme.XixiElevation
-import com.xixi.notes.ui.theme.XixiRadius
+import com.xixi.notes.ui.theme.XixiItemShape
+import com.xixi.notes.ui.theme.XixiPillShape
+import com.xixi.notes.ui.theme.XixiTextStyles
 import com.xixi.notes.ui.theme.XixiTheme
 import com.xixi.notes.ui.util.formatShortDateTime
 import com.xixi.notes.ui.util.isOverdue
@@ -61,8 +61,8 @@ import kotlinx.coroutines.delay
 /** 任务行最小高度（单行：标题 + 右侧截止时间 + 叉号） */
 val TaskRowHeight = 60.dp
 
-/** 任务行卡片圆角 */
-private val RowShape = RoundedCornerShape(XixiRadius.medium)
+/** 任务行卡片圆角（条目卡片 16dp） */
+private val RowShape = XixiItemShape
 
 /**
  * 任务行。
@@ -148,8 +148,7 @@ fun TaskRow(
                 Text(
                     text = task.title,
                     color = XixiTheme.colors.textPrimary,
-                    fontSize = 15.sp,
-                    letterSpacing = 0.3.sp,
+                    style = XixiTextStyles.rowTitle,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     textDecoration = if (task.isCheckedOff) TextDecoration.LineThrough
@@ -175,8 +174,7 @@ fun TaskRow(
                     // 已过期用危险色，其余为辅助信息色
                     color = if (overdue) XixiTheme.colors.danger
                     else XixiTheme.colors.textTertiary,
-                    fontSize = 12.sp,
-                    letterSpacing = 0.3.sp,
+                    style = XixiTextStyles.minor,
                     maxLines = 1,
                     modifier = Modifier.alpha(contentAlpha)
                 )
@@ -272,8 +270,8 @@ fun DeleteButton(
     }
 }
 
-/** 分组头部卡片圆角（小卡片 16dp） */
-private val GroupHeaderShape = RoundedCornerShape(XixiRadius.medium)
+/** 分组头部卡片圆角（条目卡片 16dp） */
+private val GroupHeaderShape = XixiItemShape
 
 /** 分组头部卡片高度 */
 private val GroupHeaderHeight = 52.dp
@@ -322,24 +320,22 @@ fun GroupHeaderRow(
         Text(
             text = title,
             color = XixiTheme.colors.textPrimary,
-            fontSize = 15.sp,
-            fontWeight = FontWeight.SemiBold,
-            letterSpacing = 0.3.sp
+            style = XixiTextStyles.rowTitle,
+            fontWeight = FontWeight.SemiBold
         )
         Spacer(modifier = Modifier.width(Spacing.sm))
         // 数量徽章
         Box(
             modifier = Modifier
-                .clip(RoundedCornerShape(percent = 50))
+                .clip(XixiPillShape)
                 .background(color.copy(alpha = 0.18f))
                 .padding(horizontal = 8.dp, vertical = 2.dp)
         ) {
             Text(
                 text = count.toString(),
                 color = color,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.SemiBold,
-                letterSpacing = 0.3.sp
+                style = XixiTextStyles.micro,
+                fontWeight = FontWeight.SemiBold
             )
         }
         Spacer(modifier = Modifier.weight(1f))
@@ -368,8 +364,7 @@ fun EmptyGroupHint(modifier: Modifier = Modifier) {
         Text(
             text = stringResource(R.string.group_empty_hint),
             color = XixiTheme.colors.textTertiary,
-            fontSize = 13.sp,
-            letterSpacing = 0.3.sp
+            style = XixiTextStyles.caption
         )
     }
 }

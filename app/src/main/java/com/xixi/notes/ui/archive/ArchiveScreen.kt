@@ -39,10 +39,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.xixi.notes.R
@@ -51,6 +49,7 @@ import com.xixi.notes.ui.components.InlineConfirm
 import com.xixi.notes.ui.components.SeekSearchBar
 import com.xixi.notes.ui.components.clickableNoRipple
 import com.xixi.notes.ui.theme.Spacing
+import com.xixi.notes.ui.theme.XixiTextStyles
 import com.xixi.notes.ui.theme.XixiTheme
 import com.xixi.notes.ui.util.GentleEasing
 import kotlinx.coroutines.delay
@@ -126,9 +125,7 @@ fun ArchiveScreen(
             Text(
                 text = stringResource(R.string.archive_title),
                 color = XixiTheme.colors.textPrimary,
-                fontSize = 26.sp,
-                letterSpacing = 0.3.sp,
-                fontWeight = FontWeight.Bold
+                style = XixiTextStyles.pageTitle
             )
             Spacer(modifier = Modifier.weight(1f))
             Box(
@@ -303,17 +300,14 @@ private fun ArchiveEmpty() {
             Text(
                 text = stringResource(R.string.archive_empty),
                 color = XixiTheme.colors.textPrimary,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.SemiBold,
-                letterSpacing = 0.3.sp,
+                style = XixiTextStyles.subtitle,
                 textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(Spacing.sm))
             Text(
                 text = stringResource(R.string.stats_empty_hint),
                 color = XixiTheme.colors.textSecondary,
-                fontSize = 13.sp,
-                letterSpacing = 0.3.sp,
+                style = XixiTextStyles.caption,
                 textAlign = TextAlign.Center
             )
         }

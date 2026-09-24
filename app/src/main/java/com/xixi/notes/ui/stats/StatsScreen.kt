@@ -34,7 +34,6 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.xixi.notes.R
@@ -90,9 +89,7 @@ fun StatsScreen(
             Text(
                 text = stringResource(R.string.stats_title),
                 color = XixiTheme.colors.textPrimary,
-                fontSize = 26.sp,
-                letterSpacing = 0.3.sp,
-                fontWeight = FontWeight.Bold
+                style = XixiTextStyles.pageTitle
             )
         }
 
@@ -171,9 +168,8 @@ private fun TotalTasksCard(
         Text(
             text = stringResource(R.string.stats_total_tasks),
             color = XixiTheme.colors.textSecondary,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.Medium,
-            letterSpacing = 0.3.sp
+            style = XixiTextStyles.caption,
+            fontWeight = FontWeight.Medium
         )
         Spacer(modifier = Modifier.height(Spacing.md))
         RollingNumber(
@@ -185,8 +181,7 @@ private fun TotalTasksCard(
         Text(
             text = stringResource(R.string.stats_tap_hint),
             color = XixiTheme.colors.textTertiary,
-            fontSize = 12.sp,
-            letterSpacing = 0.3.sp
+            style = XixiTextStyles.minor
         )
     }
 }
@@ -246,8 +241,7 @@ private fun QuadrantCountCard(
                 Text(
                     text = stringResource(quadrant.titleRes),
                     color = XixiTheme.colors.textSecondary,
-                    fontSize = 12.sp,
-                    letterSpacing = 0.3.sp,
+                    style = XixiTextStyles.minor,
                     maxLines = 2
                 )
             }
@@ -283,15 +277,14 @@ private fun StatLineCard(
             Text(
                 text = label,
                 color = XixiTheme.colors.textPrimary,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Medium,
-                letterSpacing = 0.3.sp
+                style = XixiTextStyles.rowTitle,
+                fontWeight = FontWeight.Medium
             )
             Spacer(modifier = Modifier.weight(1f))
             RollingNumber(
                 value = value,
                 color = accent,
-                style = XixiTextStyles.statNumberSmall.copy(fontSize = 24.sp, lineHeight = 28.sp)
+                style = XixiTextStyles.statNumberLine
             )
         }
     }
@@ -329,17 +322,14 @@ private fun EmptyStats() {
             Text(
                 text = stringResource(R.string.stats_empty),
                 color = XixiTheme.colors.textPrimary,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.SemiBold,
-                letterSpacing = 0.3.sp,
+                style = XixiTextStyles.subtitle,
                 textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(Spacing.sm))
             Text(
                 text = stringResource(R.string.stats_empty_hint),
                 color = XixiTheme.colors.textSecondary,
-                fontSize = 13.sp,
-                letterSpacing = 0.3.sp,
+                style = XixiTextStyles.caption,
                 textAlign = TextAlign.Center
             )
         }

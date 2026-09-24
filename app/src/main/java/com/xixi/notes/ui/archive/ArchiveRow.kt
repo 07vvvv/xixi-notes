@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
@@ -31,7 +30,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.xixi.notes.R
 import com.xixi.notes.data.local.TaskEntity
 import com.xixi.notes.ui.board.Quadrant
@@ -39,12 +37,13 @@ import com.xixi.notes.ui.components.clickableNoRipple
 import com.xixi.notes.ui.components.colorOf
 import com.xixi.notes.ui.theme.Spacing
 import com.xixi.notes.ui.theme.XixiElevation
-import com.xixi.notes.ui.theme.XixiRadius
+import com.xixi.notes.ui.theme.XixiItemShape
+import com.xixi.notes.ui.theme.XixiTextStyles
 import com.xixi.notes.ui.theme.XixiTheme
 import com.xixi.notes.ui.util.formatDateTime
 
-/** 归档行卡片圆角（与主屏任务行一致） */
-private val ArchiveRowShape = RoundedCornerShape(XixiRadius.medium)
+/** 归档行卡片圆角（与主屏任务行一致，条目卡片 16dp） */
+private val ArchiveRowShape = XixiItemShape
 
 /**
  * 归档任务行。
@@ -99,8 +98,7 @@ fun ArchiveRow(
                     text = task.title,
                     // 已完成：整体降透明度 + 删除线
                     color = XixiTheme.colors.textPrimary.copy(alpha = 0.75f),
-                    fontSize = 15.sp,
-                    letterSpacing = 0.3.sp,
+                    style = XixiTextStyles.rowTitle,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     textDecoration = TextDecoration.LineThrough,
@@ -123,8 +121,7 @@ fun ArchiveRow(
                     formatDateTime(completedAt)
                 ),
                 color = XixiTheme.colors.textTertiary,
-                fontSize = 12.sp,
-                letterSpacing = 0.3.sp,
+                style = XixiTextStyles.minor,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -180,9 +177,8 @@ fun ArchiveNoResult(onClear: () -> Unit, modifier: Modifier = Modifier) {
         Text(
             text = stringResource(R.string.search_no_result_archive),
             color = XixiTheme.colors.textPrimary,
-            fontSize = 15.sp,
-            fontWeight = FontWeight.Medium,
-            letterSpacing = 0.3.sp
+            style = XixiTextStyles.rowTitle,
+            fontWeight = FontWeight.Medium
         )
         Spacer(modifier = Modifier.height(Spacing.md))
         Box(
@@ -196,8 +192,7 @@ fun ArchiveNoResult(onClear: () -> Unit, modifier: Modifier = Modifier) {
             Text(
                 text = stringResource(R.string.action_clear_search),
                 color = XixiTheme.colors.textPrimary,
-                fontSize = 13.sp,
-                letterSpacing = 0.3.sp,
+                style = XixiTextStyles.caption,
                 fontWeight = FontWeight.Medium
             )
         }

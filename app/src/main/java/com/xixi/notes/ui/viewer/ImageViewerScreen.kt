@@ -40,7 +40,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -55,6 +54,7 @@ import com.xixi.notes.ui.theme.ViewerBackground
 import com.xixi.notes.ui.theme.ViewerSurface
 import com.xixi.notes.ui.theme.ViewerTextPrimary
 import com.xixi.notes.ui.theme.ViewerTextSecondary
+import com.xixi.notes.ui.theme.XixiTextStyles
 import com.xixi.notes.ui.theme.XixiTheme
 import com.xixi.notes.ui.util.imageModel
 import kotlin.math.abs
@@ -127,8 +127,7 @@ fun ImageViewerScreen(
                 Text(
                     text = stringResource(R.string.viewer_missing_list),
                     color = ViewerTextPrimary,
-                    fontSize = 14.sp,
-                    letterSpacing = 0.3.sp
+                    style = XixiTextStyles.body
                 )
                 Spacer(modifier = Modifier.height(Spacing.lg))
                 Box(
@@ -141,8 +140,7 @@ fun ImageViewerScreen(
                     Text(
                         text = stringResource(R.string.action_close),
                         color = ViewerTextPrimary,
-                        fontSize = 13.sp,
-                        letterSpacing = 0.3.sp
+                        style = XixiTextStyles.caption
                     )
                 }
             }
@@ -184,8 +182,7 @@ fun ImageViewerScreen(
                             paths.size
                         ),
                         color = ViewerTextPrimary,
-                        fontSize = 12.sp,
-                        letterSpacing = 0.3.sp
+                        style = XixiTextStyles.minor
                     )
                 }
             }
@@ -317,8 +314,7 @@ private fun ZoomablePage(
                     Text(
                         text = stringResource(R.string.viewer_missing_image),
                         color = ViewerTextSecondary,
-                        fontSize = 13.sp,
-                        letterSpacing = 0.3.sp
+                        style = XixiTextStyles.caption
                     )
                 }
             },
